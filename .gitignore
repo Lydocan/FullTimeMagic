@@ -1,0 +1,28 @@
+# Godot 4 生成的缓存与导入文件
+.godot/
+
+# Godot 3 兼容（如果有人用旧版本打开过）
+.import/
+
+# 导出产物与导出配置
+/export/
+export.cfg
+export_credentials.cfg
+*.exe
+*.pck
+*.zip
+
+# 本地覆盖配置（保留 export_presets.cfg 供团队共享，如需私有可自行取消注释）
+# export_presets.cfg
+.claude/settings.local.json
+
+# 系统与编辑器杂项文件
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# Mono / C#（若将来切换到 C# 版本会用到）
+.mono/
+data_*/
+mono_crash.*.json
