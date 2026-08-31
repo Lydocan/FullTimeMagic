@@ -12,7 +12,14 @@ const CHUNK := 10  # 每段字符串的格数
 const PLAYER_SCENE := preload("res://src/world/player/player.tscn")
 const CAMPFIRE_SCRIPT := preload("res://src/world/campfire.gd")
 const NPC_SCRIPT := preload("res://src/world/npc.gd")
+const FOLLOWER_SCRIPT := preload("res://src/world/follower.gd")
 const BATTLE_SCENE := "res://src/battle/battle.tscn"
+
+## 成员 id → 地图跟随立绘（战斗立绘同源；新增成员时在此登记）。
+const MEMBER_TEXTURES := {
+	"mo_fan": "res://assets/images/char_mofan.png",
+	"mu_ningxue": "res://assets/images/char_muningxue.png",
+}
 
 # tiles_proto.png 的 6 格横向图块。
 const T_GRASS := Vector2i(0, 0)
@@ -24,10 +31,12 @@ const T_WATER := Vector2i(5, 0)
 
 var player: CharacterBody2D
 var tilemap: TileMapLayer
+var followers: Array[Node2D] = []
 
 var _triggers: Array[Dictionary] = []  # {cell, radius, event}
 var _portals: Array[Dictionary] = []   # {cell, target, spawn}
 var _npcs: Array[Dictionary] = []      # {cell, texture, name, hide_flag, event}
+var _npc_nodes: Array[Area2D] = []     # 已生成的 NPC 实体（部分注册项可能未生成）
 var _event_running := false
 var _encounter_gauge := 0.0
 var _encounter_threshold := 200.0
@@ -46,6 +55,7 @@ func _ready() -> void:
 	_build_hud()
 	_apply_entry_position()
 	GameEvents.party_status_changed.connect(_refresh_hud)
+	GameEvents.party_status_changed.connect(_sync_followers)
 	_refresh_hud()
 
 
@@ -152,6 +162,16 @@ func run_event(event: Callable) -> void:
 	if is_instance_valid(player):
 		player.input_enabled = true
 	_event_running = false
+	_retire_npcs()
+
+
+## 事件收尾统一退场检查：hide_flag 已点亮的 NPC 当场离场。
+## 挂在 run_event 收尾（所有剧情路径的共用层），无论走动触发还是按 E 触发都生效。
+func _retire_npcs() -> void:
+	for node in _npc_nodes.duplicate():
+		if is_instance_valid(node) and GameState.flags.get(node.hide_flag, false):
+			_npc_nodes.erase(node)
+			node.queue_free()
 
 
 ## —— 地图构建 ——
@@ -221,11 +241,12 @@ func _spawn_player() -> void:
 	cam.limit_bottom = size.y * TILE
 
 
-## 入场处理：战斗返回位置 → 剧情触发检查 → 解除操作冷却。
+## 入场处理：战斗返回位置 → 队伍跟随 → 剧情触发检查 → 解除操作冷却。
 func _apply_entry_position() -> void:
 	if GameState.has_return_position:
 		player.global_position = GameState.return_position
 		GameState.has_return_position = false
+	_sync_followers()
 	await get_tree().create_timer(0.2).timeout
 	for t in _triggers:
 		if player.global_position.distance_to(_cell_center(t["cell"])) <= float(t["radius"]):
@@ -236,16 +257,34 @@ func _apply_entry_position() -> void:
 	player.input_enabled = true
 
 
-## 剧情 NPC 实体：事件演出完后（hide_flag 点亮）人物当场退场。
+## 队伍跟随：除首位（玩家操控）外的成员以跟随者链式登场。
+## 挂在 party_status_changed 上增量同步——入队当刻即登场，无需换图；
+## 信号高频触发（休息/修炼等），故只补缺不重建，已站位的跟随者不被重置。
+func _sync_followers() -> void:
+	var prev: Node2D = player
+	if not followers.is_empty():
+		prev = followers.back()
+	while followers.size() < GameState.party.size() - 1:
+		var m: CharacterState = GameState.party[followers.size() + 1]
+		var follower: Node2D = FOLLOWER_SCRIPT.new()
+		follower.texture = load(MEMBER_TEXTURES.get(m.id, MEMBER_TEXTURES["mo_fan"]))
+		follower.target = prev
+		follower.position = prev.position
+		add_child(follower)
+		follower.prime(Vector2(-FOLLOWER_SCRIPT.GAP, 0))  # 侧后方站定，不与主角重叠
+		followers.append(follower)
+		prev = follower
+
+
+## 剧情 NPC 实体：退场统一由 _retire_npcs 在事件收尾处理。
 func _spawn_npc(n: Dictionary) -> void:
 	var npc: Area2D = NPC_SCRIPT.new()
 	npc.position = _cell_center(n["cell"])
 	npc.display_name = n["name"]
-	npc.event = func() -> void:
-		await run_event(n["event"])
-		if GameState.flags.get(n["hide_flag"], false) and is_instance_valid(npc):
-			npc.queue_free()
+	npc.hide_flag = n["hide_flag"]
+	npc.event = func() -> void: run_event(n["event"])
 	add_child(npc)
+	_npc_nodes.append(npc)
 
 
 func _spawn_elite(e: Dictionary) -> void:

@@ -102,7 +102,7 @@ func _build_ui() -> void:
 	layer.add_child(_order_label)
 
 	var keys_hint := Label.new()
-	keys_hint.text = "方向键 选择 · 回车 确认 · Esc 返回 · W/S 调整星辉（鼠标可辅助）"
+	keys_hint.text = "方向键/WASD 选择 · 回车/E 确认 · Z 循环增幅 · Esc 返回（鼠标可辅助）"
 	keys_hint.position = Vector2(16, 32)
 	keys_hint.add_theme_font_size_override("font_size", 12)
 	keys_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
@@ -181,8 +181,8 @@ func _build_ui() -> void:
 	_boost_value.add_theme_color_override("font_color", Color("c792ff"))
 	boost_row.add_child(_boost_value)
 	var boost_up := Button.new()
-	boost_up.text = "▲ 消耗星辉增幅"
-	boost_up.pressed.connect(func() -> void: _adjust_boost(1))
+	boost_up.text = "Z 循环增幅"
+	boost_up.pressed.connect(_cycle_boost)
 	boost_row.add_child(boost_up)
 	_spell_box = VBoxContainer.new()
 	_spell_box.add_theme_constant_override("separation", 2)
@@ -330,7 +330,7 @@ func _update_member_panel(m: CharacterState) -> void:
 	_hp_bar.tooltip_text = "HP %d/%d" % [m.hp, m.eff_max_hp()]
 	_mp_bar.tooltip_text = "MP %d/%d" % [m.mp, m.eff_max_mp()]
 	_stars_label.text = "星辉 " + "◆".repeat(m.battle_stars) + "◇".repeat(MAX_STARS - m.battle_stars)
-	_boost_value.text = "增幅 ×%d（W/S 或 ▲▼）" % _boost
+	_refresh_boost_label()
 
 
 func _fill_spell_list(m: CharacterState) -> void:
@@ -374,7 +374,20 @@ func _adjust_boost(delta: int) -> void:
 	if _phase != Phase.COMMAND and _phase != Phase.SPELL_SELECT:
 		return
 	_boost = clampi(_boost + delta, 0, mini(_member.battle_stars, MAX_STARS))
-	_boost_value.text = "增幅 ×%d（W/S 或 ▲▼）" % _boost
+	_refresh_boost_label()
+
+
+## Z 循环星辉增幅：0 → 1 → … → 当前可用上限 → 0。
+func _cycle_boost() -> void:
+	if _phase != Phase.COMMAND and _phase != Phase.SPELL_SELECT:
+		return
+	var max_boost := mini(_member.battle_stars, MAX_STARS)
+	_boost = (_boost + 1) % (max_boost + 1)
+	_refresh_boost_label()
+
+
+func _refresh_boost_label() -> void:
+	_boost_value.text = "增幅 ×%d（Z 循环 或 ▲▼）" % _boost
 
 
 func _open_spell_list() -> void:
@@ -476,19 +489,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			_focus_spell(_last_spell_index)
 		return
 	if _phase == Phase.COMMAND or _phase == Phase.SPELL_SELECT:
-		# 纯键盘：W/S 调整星辉增幅（方向键留给焦点导航），Esc 返回指令菜单
-		var used := true
-		if event.is_action_pressed("move_up"):
-			_adjust_boost(1)
-		elif event.is_action_pressed("move_down"):
-			_adjust_boost(-1)
+		# 全键盘：WASD=方向键导航（ui_* 映射），回车/E=确认，Z 循环增幅，Esc 返回指令菜单
+		if event.is_action_pressed("boost_cycle"):
+			_cycle_boost()
+			get_viewport().set_input_as_handled()
 		elif _phase == Phase.SPELL_SELECT and event.is_action_pressed("ui_cancel"):
 			_back_to_command()
-		else:
-			used = false
-		if used:
 			get_viewport().set_input_as_handled()
-			return
 	if _phase == Phase.COMMAND and event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:

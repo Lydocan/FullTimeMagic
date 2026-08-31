@@ -36,8 +36,88 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var trig_ok: bool = await _test_walk_trigger_and_story_battle()
 	ok = trig_ok and ok
+	var fw_ok: bool = await _test_followers()
+	ok = fw_ok and ok
+	var retire_ok: bool = await _test_npc_retire()
+	ok = retire_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
+
+
+## NPC 退场：退场检查挂在 run_event 收尾（共用层），走动触发的事件结束后 NPC 随旗标退场。
+func _test_npc_retire() -> bool:
+	print("[NPC 退场]")
+	GameState.new_game()
+	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_done",
+			"prologue_tutorial_done", "ch1_yuang_done"]:
+		GameState.flags[f] = true
+	GameState.flags.erase("ch1_mufu_done")  # 穆宁雪 NPC 在场
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout
+	var nodes: Array = city.get("_npc_nodes")
+	if nodes.size() != 1:
+		printerr("  FAIL  预期 1 位 NPC 在场，实际 %d" % nodes.size())
+		city.free()
+		GameState.new_game()
+		await get_tree().process_frame
+		return false
+	var npc: Area2D = nodes[0]
+	GameState.flags["ch1_mufu_done"] = true  # 模拟剧情已完成
+	var player: Node2D = city.get("player")
+	player.global_position = city._cell_center(Vector2i(29, 12))
+	city._on_player_moved(1.0)  # 走入剧情圈 → 事件快速返回 → 收尾退场
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var gone: bool = not is_instance_valid(npc) and (city.get("_npc_nodes") as Array).is_empty()
+	if gone:
+		print("  PASS  事件收尾后 NPC 退场（走动触发路径）")
+	else:
+		printerr("  FAIL  NPC 未随事件收尾退场")
+	city.free()
+	GameState.new_game()
+	await get_tree().process_frame
+	return gone
+
+
+## 队伍跟随：入队成员在地图上以跟随者登场（链式，数量 = 队伍人数 - 1）。
+func _test_followers() -> bool:
+	print("[队伍跟随]")
+	GameState.new_game()
+	# 单人：无跟随者
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout
+	var solo_ok: bool = city.get("followers").is_empty()
+	if solo_ok:
+		print("  PASS  单人队伍无跟随者")
+	else:
+		printerr("  FAIL  单人队伍出现了跟随者")
+	# 入队当刻：不换图即刻登场（曾在入场时才生成，入队后要换图才出现）
+	GameState.join_member(PartySetup.mu_ningxue())
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var instant_ok: bool = city.get("followers").size() == 1
+	if instant_ok:
+		print("  PASS  入队当刻跟随者即登场")
+	else:
+		printerr("  FAIL  入队后跟随者未即时登场")
+	city.free()
+	await get_tree().process_frame
+	# 换图后跟随持续（入场生成路径）
+	var city2: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city2)
+	await get_tree().create_timer(1.5).timeout
+	var fw: Array = city2.get("followers")
+	var duo_ok: bool = fw.size() == 1
+	if duo_ok:
+		print("  PASS  换图后跟随持续（%d 位）" % fw.size())
+	else:
+		printerr("  FAIL  换图后跟随者数量错误：%d" % fw.size())
+	city2.free()
+	GameState.new_game()  # 还原单人队伍
+	await get_tree().process_frame
+	return solo_ok and instant_ok and duo_ok
 
 
 ## 专项回归：①走动触发（此前只在入场瞬间检查，剧情点走路永远打不开）；

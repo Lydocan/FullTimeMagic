@@ -6,6 +6,7 @@ extends Area2D
 ## 地图会让人物退场（见 MapBase._spawn_npc）。
 
 var display_name := ""
+var hide_flag := ""
 var event: Callable = Callable()
 
 var _bob_time := 0.0

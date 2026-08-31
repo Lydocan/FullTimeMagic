@@ -39,6 +39,7 @@ func _ready() -> void:
 	_test_save_roundtrip()
 	_test_defeat_recovery()
 	_test_npc_and_objective()
+	_test_input_map()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
 	if _failures.is_empty():
@@ -202,6 +203,27 @@ func _test_defeat_recovery() -> void:
 	if FileAccess.file_exists(SaveSystem.save_path):
 		DirAccess.remove_absolute(SaveSystem.save_path)
 	SaveSystem.save_path = real_path
+
+
+## 输入映射：WASD 导航、E 确认、Z 循环增幅（战斗与菜单全键盘简化）。
+func _test_input_map() -> void:
+	print("[输入映射]")
+	_check(_has_key("ui_up", KEY_W) and _has_key("ui_down", KEY_S), "W/S 等同上下导航")
+	_check(_has_key("ui_left", KEY_A) and _has_key("ui_right", KEY_D), "A/D 等同左右导航")
+	_check(_has_key("ui_accept", KEY_E), "E 等同回车确认")
+	_check(_has_key("boost_cycle", KEY_Z), "Z 循环星辉增幅")
+	_check(_has_key("ui_up", KEY_UP) and _has_key("ui_accept", KEY_ENTER), "方向键/回车原生键保留")
+	_check(_has_key("move_up", KEY_W) and _has_key("move_left", KEY_A), "探索移动 WASD 保留")
+
+
+func _has_key(action: String, keycode: Key) -> bool:
+	if not InputMap.has_action(action):
+		return false
+	for ev in InputMap.action_get_events(action):
+		var k := ev as InputEventKey
+		if k != null and k.physical_keycode == keycode:
+			return true
+	return false
 
 
 ## 对话自动收起：台词进行中面板保持，连续台词不闪烁，序列结束后下一帧隐藏。
