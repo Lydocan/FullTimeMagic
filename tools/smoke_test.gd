@@ -17,6 +17,9 @@ const MAP_SCRIPTS := {
 }
 const BLOCKED := "TRW"  # 树/岩石/水为阻挡格
 
+## 按路径引用基类，避免 class_name 全局缓存过期时解析失败
+const MapBaseScript := preload("res://src/world/map_base.gd")
+
 
 func _check(cond: bool, label: String) -> void:
 	_total += 1
@@ -170,11 +173,11 @@ func _test_map_integrity() -> void:
 	print("[地图完整性]")
 	var maps := {}
 	for scene_path in MAP_SCRIPTS:
-		var map: MapBase = (load(MAP_SCRIPTS[scene_path]) as GDScript).new()
+		var map: MapBaseScript = (load(MAP_SCRIPTS[scene_path]) as GDScript).new()
 		map.setup_triggers()  # 注册触发器/传送门/篝火（不入树，仅数据层校验）
 		maps[scene_path] = map
 	for scene_path in maps:
-		var map: MapBase = maps[scene_path]
+		var map: MapBaseScript = maps[scene_path]
 		var name: String = scene_path.get_file()
 		var rows := map.map_rows()
 		_check(rows.size() % 4 == 0, "%s：地图行数为 4 的倍数" % name)
@@ -194,7 +197,7 @@ func _test_map_integrity() -> void:
 			if BLOCKED.contains(map._cell_char(p["cell"])):
 				portal_ok = false
 			# 目的地出生格在目标地图上也要能站人（跨地图校验）
-			var target: MapBase = maps.get(p["target"])
+			var target: MapBaseScript = maps.get(p["target"])
 			if target != null and BLOCKED.contains(target._cell_char(p["spawn"])):
 				portal_ok = false
 		_check(portal_ok, "%s：传送门两端均可通行" % name)

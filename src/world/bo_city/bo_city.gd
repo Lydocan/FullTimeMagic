@@ -1,7 +1,12 @@
-extends MapBase
+extends "res://src/world/map_base.gd"
 ## 博城：第一章主城。莫家（篝火/存档）、街道、天澜高中。
 ## 城内无遇敌；北门通灰雾林地。
 ## 占位美术期：树块代表房屋与围墙，正式地图换编辑器制作。
+##
+## 注意：继承与剧情事件均按路径 preload，不依赖 class_name 全局缓存，
+## 避免 .godot 缓存过期时报 "Could not find base class"。
+
+const Story := preload("res://src/story/story_events.gd")
 
 const MAP := [
 	"TTTTTTTTTT", "TTTTTTTTTT", "GTTTTTTTTT", "TTTTTTTTTT",
@@ -48,8 +53,8 @@ func setup_triggers() -> void:
 	add_campfire(HOME_CELL)
 	add_portal(NORTH_GATE, GROVE_SCENE, Vector2i(7, 20))
 	# 序章：出生点自动触发（穿越 + 觉醒典礼）
-	add_trigger(SPAWN_CELL, 56.0, func() -> void: await StoryEvents.prologue(self))
+	add_trigger(SPAWN_CELL, 56.0, func() -> void: await Story.prologue(self))
 	# 天澜高中门口：宇昂挑衅
-	add_trigger(Vector2i(13, 6), 56.0, func() -> void: await StoryEvents.yu_ang_taunt(self))
+	add_trigger(Vector2i(13, 6), 56.0, func() -> void: await Story.yu_ang_taunt(self))
 	# 东街：重逢穆宁雪
-	add_trigger(Vector2i(30, 12), 56.0, func() -> void: await StoryEvents.meet_mu_ningxue(self))
+	add_trigger(Vector2i(30, 12), 56.0, func() -> void: await Story.meet_mu_ningxue(self))

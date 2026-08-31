@@ -1,6 +1,9 @@
-extends MapBase
+extends "res://src/world/map_base.gd"
 ## 灰雾林地：博城郊外狩猎场。深草暗雷 + 明雷精英「独眼魔狼王」。
 ## 序章教学战与第一章前半的黑教廷线索都在这里。
+## 继承与剧情事件按路径 preload，不依赖 class_name 全局缓存。
+
+const Story := preload("res://src/story/story_events.gd")
 
 const MAP := [
 	"TTTTTTTTTT", "TTTTTTTTTT", "TTTTTTTTTT", "TTTTTTTTTT",
@@ -60,6 +63,6 @@ func setup_triggers() -> void:
 	add_campfire(CAMP_CELL)
 	add_portal(SOUTH_GATE, BO_CITY_SCENE, Vector2i(20, 2))
 	# 序章教学战（唐月指导）
-	add_trigger(Vector2i(8, 17), 64.0, func() -> void: await StoryEvents.grove_tutorial(self))
+	add_trigger(Vector2i(8, 17), 64.0, func() -> void: await Story.grove_tutorial(self))
 	# 讨伐狼王后的黑教廷线索
-	add_trigger(Vector2i(34, 13), 96.0, func() -> void: await StoryEvents.grove_after_boss(self))
+	add_trigger(Vector2i(34, 13), 96.0, func() -> void: await Story.grove_after_boss(self))
