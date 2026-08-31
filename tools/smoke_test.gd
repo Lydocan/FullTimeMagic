@@ -38,6 +38,7 @@ func _ready() -> void:
 	_test_character_serialization()
 	_test_save_roundtrip()
 	_test_defeat_recovery()
+	_test_npc_and_objective()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
 	if _failures.is_empty():
@@ -228,6 +229,46 @@ func _wait_typed() -> void:
 			break
 		await get_tree().process_frame
 	await get_tree().process_frame
+
+
+## 剧情引导：NPC 注册完整性（站格可通行/退场旗标有效/立绘存在）与目标提示推进。
+func _test_npc_and_objective() -> void:
+	print("[剧情引导]")
+	var known_flags := ["prologue_awaken_done", "prologue_done", "ch1_mufu_done", "ch1_yuang_done"]
+	var npc_total := 0
+	var npc_ok := true
+	for scene_path in MAP_SCRIPTS:
+		var m: MapBaseScript = (load(MAP_SCRIPTS[scene_path]) as GDScript).new()
+		m.setup_triggers()
+		for n in m._npcs:
+			npc_total += 1
+			if BLOCKED.contains(m._cell_char(n["cell"])):
+				npc_ok = false
+				printerr("    NPC 站在阻挡格：%s %s %s" % [scene_path.get_file(), n["name"], n["cell"]])
+			if not (n["hide_flag"] in known_flags):
+				npc_ok = false
+			if not ResourceLoader.exists(n["texture"]):
+				npc_ok = false
+		m.free()
+	_check(npc_total >= 4, "剧情 NPC 已上场（%d 位）" % npc_total)
+	_check(npc_ok, "NPC 站格可通行、退场旗标与立绘有效")
+	# 目标提示随旗标逐段推进
+	var city: MapBaseScript = (load(MAP_SCRIPTS["res://src/world/bo_city/bo_city.tscn"]) as GDScript).new()
+	GameState.new_game()
+	_check(city._objective_text().contains("觉醒典礼"), "目标提示：序章·觉醒典礼")
+	GameState.flags["prologue_awaken_done"] = true
+	_check(city._objective_text().contains("灰雾林地"), "目标提示：林地试练")
+	GameState.flags["prologue_done"] = true
+	_check(city._objective_text().contains("东街"), "目标提示：东街重逢")
+	GameState.flags["ch1_mufu_done"] = true
+	GameState.flags["ch1_yuang_done"] = true
+	_check(city._objective_text().contains("狼王"), "目标提示：讨伐狼王")
+	GameState.flags["elite_wolf_dead"] = true
+	_check(city._objective_text().contains("查看"), "目标提示：查看狼王异常")
+	GameState.flags["chapter1_half_done"] = true
+	_check(city._objective_text().contains("后续"), "目标提示：前半完结")
+	GameState.new_game()
+	city.free()
 
 
 ## 地图完整性：行列结构、出生点/触发点/传送门两端/精英格均可通行。

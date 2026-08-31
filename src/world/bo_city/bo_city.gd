@@ -58,3 +58,13 @@ func setup_triggers() -> void:
 	add_trigger(Vector2i(13, 6), 56.0, func() -> void: await Story.yu_ang_taunt(self))
 	# 东街：重逢穆宁雪
 	add_trigger(Vector2i(30, 12), 56.0, func() -> void: await Story.meet_mu_ningxue(self))
+	# —— 剧情 NPC（事件演完后退场）——
+	add_npc(Vector2i(8, 19), "res://assets/images/char_tangyue.png",
+			"唐月", "prologue_awaken_done",
+			func() -> void: await Story.prologue(self))
+	add_npc(Vector2i(30, 13), "res://assets/images/char_muningxue.png",
+			"穆宁雪", "ch1_mufu_done",
+			func() -> void: await Story.meet_mu_ningxue(self))
+	add_npc(Vector2i(13, 6), "res://assets/images/char_yuang.png",
+			"宇昂", "ch1_yuang_done",
+			func() -> void: await Story.yu_ang_taunt(self))

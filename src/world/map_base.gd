@@ -11,6 +11,7 @@ const CHUNK := 10  # 每段字符串的格数
 
 const PLAYER_SCENE := preload("res://src/world/player/player.tscn")
 const CAMPFIRE_SCRIPT := preload("res://src/world/campfire.gd")
+const NPC_SCRIPT := preload("res://src/world/npc.gd")
 const BATTLE_SCENE := "res://src/battle/battle.tscn"
 
 # tiles_proto.png 的 6 格横向图块。
@@ -26,6 +27,7 @@ var tilemap: TileMapLayer
 
 var _triggers: Array[Dictionary] = []  # {cell, radius, event}
 var _portals: Array[Dictionary] = []   # {cell, target, spawn}
+var _npcs: Array[Dictionary] = []      # {cell, texture, name, hide_flag, event}
 var _event_running := false
 var _encounter_gauge := 0.0
 var _encounter_threshold := 200.0
@@ -33,6 +35,7 @@ var _cooling := true
 var _menu: Control = null
 var _menu_result: Label = null
 var _wealth_label: Label
+var _objective_label: Label
 var _hud: CanvasLayer
 
 
@@ -80,12 +83,20 @@ func _build_content() -> void:
 	for e in elite_spawns():
 		if not GameState.flags.get(e["flag"], false):
 			_spawn_elite(e)
+	for n in _npcs:
+		if not GameState.flags.get(n["hide_flag"], false):
+			_spawn_npc(n)
 
 
 ## —— 给子类/剧情用的注册与辅助 API ——
 
 func add_trigger(cell: Vector2i, radius: float, event: Callable) -> void:
 	_triggers.append({"cell": cell, "radius": radius, "event": event})
+
+
+## 注册剧情 NPC：hide_flag 点亮后不再出现（人物退场）。
+func add_npc(cell: Vector2i, texture: String, display_name: String, hide_flag: String, event: Callable) -> void:
+	_npcs.append({"cell": cell, "texture": texture, "name": display_name, "hide_flag": hide_flag, "event": event})
 
 
 func add_portal(cell: Vector2i, target_scene: String, spawn_cell: Vector2i) -> void:
@@ -225,6 +236,18 @@ func _apply_entry_position() -> void:
 	player.input_enabled = true
 
 
+## 剧情 NPC 实体：事件演出完后（hide_flag 点亮）人物当场退场。
+func _spawn_npc(n: Dictionary) -> void:
+	var npc: Area2D = NPC_SCRIPT.new()
+	npc.position = _cell_center(n["cell"])
+	npc.display_name = n["name"]
+	npc.event = func() -> void:
+		await run_event(n["event"])
+		if GameState.flags.get(n["hide_flag"], false) and is_instance_valid(npc):
+			npc.queue_free()
+	add_child(npc)
+
+
 func _spawn_elite(e: Dictionary) -> void:
 	var area := Area2D.new()
 	area.position = _cell_center(e["cell"])
@@ -320,6 +343,12 @@ func _build_hud() -> void:
 	hint.position = Vector2(12, get_viewport_rect().size.y - 34)
 	_hud.add_child(hint)
 
+	_objective_label = Label.new()
+	_objective_label.add_theme_font_size_override("font_size", 14)
+	_objective_label.add_theme_color_override("font_color", Color("ffd166"))
+	_objective_label.position = Vector2(12, get_viewport_rect().size.y - 58)
+	_hud.add_child(_objective_label)
+
 	_wealth_label = Label.new()
 	_wealth_label.add_theme_font_size_override("font_size", 13)
 	_wealth_label.position = Vector2(get_viewport_rect().size.x - 300, 12)
@@ -327,6 +356,7 @@ func _build_hud() -> void:
 
 
 func _refresh_hud() -> void:
+	_objective_label.text = "◆ " + _objective_text()
 	for m in GameState.party:
 		var id: int = m.get_meta("hud_label", 0)
 		var label := instance_from_id(id) as Label
@@ -350,6 +380,23 @@ func _essence_short(eid: String) -> String:
 		if eid == GameState.essence_for_element(el):
 			return GameTypes.element_name(el)
 	return eid
+
+
+## 当前主线目标（按剧情旗标推进，序章 → 第一章前半）。
+func _objective_text() -> String:
+	if not flag("prologue_awaken_done"):
+		return "目标：参加觉醒典礼"
+	if not flag("prologue_done"):
+		return "目标：在灰雾林地试练——唐月在林地入口等你"
+	if not flag("ch1_mufu_done"):
+		return "目标：去博城东街，那里有位旧识"
+	if not flag("ch1_yuang_done"):
+		return "目标：路过天澜高中门口看看"
+	if not flag("elite_wolf_dead"):
+		return "目标：讨伐灰雾林地深处的「独眼魔狼王」"
+	if not flag("chapter1_half_done"):
+		return "目标：狼王死后有异样，去林地深处查看"
+	return "第一章·前半 完——地圣泉修行与博城之变将在后续版本推进"
 
 
 ## —— 篝火菜单：休息 / 修炼 / 突破 / 存档 ——

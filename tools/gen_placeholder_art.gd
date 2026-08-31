@@ -107,6 +107,39 @@ func _characters() -> void:
 	_rect(xue, 13, 29, 3, 2, Color("5d84ad"))
 	_save(xue, "char_muningxue.png")
 
+	var tang := _img(24, 32)
+	_rect(tang, 5, 1, 14, 12, Color("1f1f28"))  # 黑长发
+	_rect(tang, 8, 7, 8, 5, Color("eec9a0"))    # 脸
+	_rect(tang, 9, 8, 2, 1, Color("a03030"))    # 眼
+	_rect(tang, 13, 8, 2, 1, Color("a03030"))
+	_rect(tang, 5, 12, 3, 12, Color("1f1f28"))  # 发披肩
+	_rect(tang, 16, 12, 3, 12, Color("1f1f28"))
+	_rect(tang, 6, 12, 12, 11, Color("b03434")) # 火红外套
+	_rect(tang, 11, 12, 2, 11, Color("8c2626")) # 衣襟
+	_rect(tang, 4, 13, 2, 7, Color("9c2c2c"))   # 臂
+	_rect(tang, 18, 13, 2, 7, Color("9c2c2c"))
+	_rect(tang, 8, 23, 3, 6, Color("2c2c34"))   # 腿
+	_rect(tang, 13, 23, 3, 6, Color("2c2c34"))
+	_rect(tang, 8, 29, 3, 2, Color("1d1d24"))   # 鞋
+	_rect(tang, 13, 29, 3, 2, Color("1d1d24"))
+	_save(tang, "char_tangyue.png")
+
+	var yu := _img(24, 32)
+	_rect(yu, 6, 2, 12, 6, Color("d8b44a"))    # 金发
+	_rect(yu, 8, 7, 8, 5, Color("eec9a0"))     # 脸
+	_rect(yu, 9, 8, 2, 1, Color("3c4c8c"))     # 眼
+	_rect(yu, 13, 8, 2, 1, Color("3c4c8c"))
+	_rect(yu, 6, 12, 12, 10, Color("e8e4da"))  # 白华服
+	_rect(yu, 6, 12, 12, 2, Color("c8b04a"))   # 金镶边
+	_rect(yu, 11, 14, 2, 8, Color("b8a840"))   # 衣襟
+	_rect(yu, 4, 13, 2, 7, Color("d8d4ca"))    # 臂
+	_rect(yu, 18, 13, 2, 7, Color("d8d4ca"))
+	_rect(yu, 8, 22, 3, 7, Color("4a4a58"))    # 腿
+	_rect(yu, 13, 22, 3, 7, Color("4a4a58"))
+	_rect(yu, 8, 29, 3, 2, Color("2c2c34"))    # 鞋
+	_rect(yu, 13, 29, 3, 2, Color("2c2c34"))
+	_save(yu, "char_yuang.png")
+
 
 ## 妖魔占位。
 func _monsters() -> void:
