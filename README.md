@@ -4,7 +4,8 @@
 
 ## 环境要求
 
-- [Godot 4.4+](https://godotengine.org/download)（标准版即可，无需安装，下载解压即用；项目使用 GDScript，不是 .NET 版）
+- [Godot 4.7+](https://godotengine.org/download)（标准版即可，无需安装，下载解压即用；项目使用 GDScript，不是 .NET 版）
+- 命令行已配置：`godot` 打开编辑器，`godot_console` 用于终端中查看日志输出（安装目录已加入用户 PATH）
 - Git 2.28+
 
 ## 快速开始
