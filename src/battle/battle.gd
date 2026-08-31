@@ -643,7 +643,11 @@ func _lose() -> void:
 
 func _finish(victory: bool, fled: bool) -> void:
 	GameEvents.battle_finished.emit(victory, fled)
-	get_tree().change_scene_to_file(WORLD_SCENE)
+	var target: String = GameState.battle_return_scene
+	if target == "" or not ResourceLoader.exists(target):
+		target = WORLD_SCENE
+	GameState.battle_return_scene = ""
+	get_tree().change_scene_to_file(target)
 
 
 func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, events: Array) -> void:

@@ -1,20 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
 
-[node name="Main" type="Node2D"]
+[node name="Title" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
 script = ExtResource("1_main")
-
-[node name="Icon" type="Sprite2D" parent="."]
-position = Vector2(640, 280)
-texture = ExtResource("2_icon")
-
-[node name="Title" type="Label" parent="."]
-offset_left = 340.0
-offset_top = 360.0
-offset_right = 940.0
-offset_bottom = 420.0
-theme_override_font_sizes/font_size = 40
-text = "FullTimeMagic"
-horizontal_alignment = 1

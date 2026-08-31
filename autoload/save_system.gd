@@ -1,0 +1,91 @@
+extends Node
+## 存档系统（autoload：SaveSystem）。
+##
+## 单存档位 JSON（user://savegame.json）。存/读数据与场景切换分离：
+## make_save_data / apply_save_data 可独立测试，save_game / load_game 面向玩家。
+
+const SAVE_PATH := "user://savegame.json"
+
+
+func has_save() -> bool:
+	return FileAccess.file_exists(SAVE_PATH)
+
+
+## 收集当前状态为可序列化字典（不落盘）。
+func make_save_data() -> Dictionary:
+	var data := {
+		"version": 1,
+		"scene": "",
+		"gold": GameState.gold,
+		"essences": GameState.essences,
+		"flags": GameState.flags,
+		"party": [],
+		"return_position": [GameState.return_position.x, GameState.return_position.y],
+		"has_return_position": GameState.has_return_position,
+	}
+	var cs := get_tree().current_scene
+	if cs != null:
+		data["scene"] = cs.scene_file_path
+		var player: Node2D = cs.get("player")
+		if player != null:
+			data["return_position"] = [player.global_position.x, player.global_position.y]
+			data["has_return_position"] = true
+	for m in GameState.party:
+		data["party"].append(m.to_dict())
+	return data
+
+
+## 应用存档数据到 GameState（不切换场景）。返回是否成功。
+func apply_save_data(d: Dictionary) -> bool:
+	if d.is_empty():
+		return false
+	GameState.gold = int(d.get("gold", 0))
+	GameState.essences = {}
+	for key in d.get("essences", {}):
+		GameState.essences[str(key)] = int(d["essences"][key])
+	GameState.flags = {}
+	for key in d.get("flags", {}):
+		GameState.flags[str(key)] = bool(d["flags"][key])
+	GameState.party.clear()
+	for pd in d.get("party", []):
+		GameState.party.append(CharacterState.from_dict(pd))
+	var pos: Array = d.get("return_position", [0, 0])
+	GameState.return_position = Vector2(float(pos[0]), float(pos[1])) if pos.size() == 2 else Vector2.ZERO
+	GameState.has_return_position = bool(d.get("has_return_position", false))
+	GameState.pending_enemies = []
+	GameState.pending_flag = ""
+	GameState.next_spawn = Vector2i(-1, -1)
+	GameEvents.party_status_changed.emit()
+	return true
+
+
+func save_game() -> Error:
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if f == null:
+		push_error("存档写入失败：%s" % SAVE_PATH)
+		return FAILED
+	f.store_string(JSON.stringify(make_save_data(), "\t"))
+	f.close()
+	return OK
+
+
+## 读档并切换到存档场景。返回是否成功。
+func load_game() -> bool:
+	if not has_save():
+		return false
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return false
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		push_error("存档解析失败")
+		return false
+	if not apply_save_data(parsed):
+		return false
+	var scene: String = parsed.get("scene", "")
+	if scene != "" and ResourceLoader.exists(scene):
+		get_tree().change_scene_to_file(scene)
+		return true
+	push_error("存档场景无效：%s" % scene)
+	return false

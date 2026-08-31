@@ -16,6 +16,10 @@ var flags: Dictionary = {}
 var pending_enemies: Array = []
 ## 战斗胜利后要点亮的剧情旗标（"" 为无，如明雷精英战）。
 var pending_flag: String = ""
+## 战斗来源地图（战斗结束回这里）。
+var battle_return_scene: String = ""
+## 传送门目标出生格（-1, -1 表示无）。
+var next_spawn := Vector2i(-1, -1)
 var return_position := Vector2.ZERO
 var has_return_position := false
 
@@ -25,11 +29,25 @@ func _ready() -> void:
 	new_game()
 
 
-## 开新档（原型期：启动即组队）。
+## 开新档：只有莫凡（序章中穆宁雪入队）。
 func new_game() -> void:
 	party.clear()
 	party.append(PartySetup.mo_fan())
-	party.append(PartySetup.mu_ningxue())
+	gold = 30
+	essences = {}
+	flags = {}
+	pending_enemies = []
+	pending_flag = ""
+	battle_return_scene = ""
+	next_spawn = Vector2i(-1, -1)
+	return_position = Vector2.ZERO
+	has_return_position = false
+	GameEvents.party_status_changed.emit()
+
+
+## 剧情入队。
+func join_member(member: CharacterState) -> void:
+	party.append(member)
 	GameEvents.party_status_changed.emit()
 
 

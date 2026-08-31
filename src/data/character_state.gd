@@ -180,3 +180,56 @@ func reset_battle_state() -> void:
 	defending = false
 	burn_turns = 0
 	paralyzed = false
+
+
+## —— 存档序列化 ——
+## 注意：JSON 会把字典 int 键转为字符串、数字转为浮点，两侧需显式转换。
+
+func to_dict() -> Dictionary:
+	var spell_ids := []
+	for s in spells:
+		spell_ids.append(s.id)
+	var ranks_out := {}
+	for el in ranks:
+		ranks_out[str(el)] = ranks[el]
+	return {
+		"id": id, "name": char_name, "elements": elements,
+		"main_element": main_element, "form": form,
+		"can_switch_form": can_switch_form, "ranks": ranks_out,
+		"spells": spell_ids,
+		"max_hp": max_hp, "max_mp": max_mp, "magic": magic,
+		"defense": defense, "speed": speed,
+		"hp": hp, "mp": mp,
+	}
+
+
+static func from_dict(d: Dictionary) -> CharacterState:
+	var c := CharacterState.new()
+	c.id = str(d.get("id", ""))
+	c.char_name = str(d.get("name", ""))
+	c.elements = []
+	for el in d.get("elements", []):
+		c.elements.append(int(el))
+	c.main_element = int(d.get("main_element", GameTypes.Element.FIRE))
+	c.form = int(d.get("form", 0))
+	c.can_switch_form = bool(d.get("can_switch_form", false))
+	for key in d.get("ranks", {}):
+		var r: Dictionary = d["ranks"][key]
+		c.ranks[int(key)] = {
+			"stage": int(r.get("stage", 0)),
+			"star": int(r.get("star", 0)),
+			"dust": int(r.get("dust", 0)),
+			"bottleneck": bool(r.get("bottleneck", false)),
+		}
+	for sid in d.get("spells", []):
+		var s := GameData.load_spell(str(sid))
+		if s != null:
+			c.spells.append(s)
+	c.max_hp = int(d.get("max_hp", 80))
+	c.max_mp = int(d.get("max_mp", 30))
+	c.magic = int(d.get("magic", 10))
+	c.defense = int(d.get("defense", 3))
+	c.speed = int(d.get("speed", 8))
+	c.hp = int(d.get("hp", c.max_hp))
+	c.mp = int(d.get("mp", c.max_mp))
+	return c

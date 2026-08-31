@@ -12,7 +12,7 @@ config_version=5
 
 config/name="FullTimeMagic"
 config/description="一款 2D 角色扮演游戏（RPG）。"
-run/main_scene="res://src/world/test_wilds/test_wilds.tscn"
+run/main_scene="res://src/main/main.tscn"
 config/features=PackedStringArray("4.7", "2D")
 config/icon="res://icon.svg"
 
@@ -20,6 +20,8 @@ config/icon="res://icon.svg"
 
 GameEvents="*res://autoload/game_events.gd"
 GameState="*res://autoload/game_state.gd"
+SaveSystem="*res://autoload/save_system.gd"
+Dialogue="*res://autoload/dialogue.gd"
 
 [display]
 
