@@ -16,6 +16,7 @@ const MONSTERS := {
 	"rat_swarm": "res://resources/monsters/rat_swarm.tres",
 	"one_eye_wolf": "res://resources/monsters/one_eye_wolf.tres",
 	"wolf_alpha": "res://resources/monsters/wolf_alpha.tres",
+	"yu_ang": "res://resources/monsters/yu_ang.tres",
 }
 
 const ITEMS := {

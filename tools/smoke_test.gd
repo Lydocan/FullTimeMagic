@@ -14,6 +14,7 @@ const MAP_SCRIPTS := {
 	"res://src/world/test_wilds/test_wilds.tscn": "res://src/world/test_wilds/test_wilds.gd",
 	"res://src/world/bo_city/bo_city.tscn": "res://src/world/bo_city/bo_city.gd",
 	"res://src/world/misty_grove/misty_grove.tscn": "res://src/world/misty_grove/misty_grove.gd",
+	"res://src/world/arena/duel_arena.tscn": "res://src/world/arena/duel_arena.gd",
 }
 const BLOCKED := "TRW"  # 树/岩石/水为阻挡格
 
@@ -41,6 +42,7 @@ func _ready() -> void:
 	_test_npc_and_objective()
 	_test_input_map()
 	_test_economy()
+	await _test_duel_boss()
 	await _test_audio()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
@@ -305,6 +307,35 @@ func _test_economy() -> void:
 	GameState.new_game()
 
 
+## M3.1 毕业决斗：出战成员子集（单人决斗）与 Boss 模拟战。
+func _test_duel_boss() -> void:
+	print("[毕业决斗]")
+	_check(ResourceLoader.exists(GameData.MONSTERS["yu_ang"]), "宇昂 Boss 数据就绪")
+	GameState.new_game()
+	GameState.join_member(PartySetup.mu_ningxue())
+	# 决斗时点的基准练度：雷系初阶三星（瓶颈）
+	GameState.party[0].gain_xp(GameTypes.Element.LIGHTNING, 21)
+	GameState.pending_enemies = ["yu_ang"]
+	GameState.pending_flag = "duel_won"
+	GameState.pending_party_ids = ["mo_fan"]
+	var battle: Node2D = (load("res://src/battle/battle.tscn") as PackedScene).instantiate()
+	add_child(battle)
+	var result: Dictionary = await battle.run_simulation()
+	_check(result["victory"], "莫凡单人击败宇昂")
+	_check(int(result["rounds"]) <= 24, "决斗回合数在设计区间（%s）" % result["rounds"])
+	_check(GameState.flags.get("duel_won", false), "胜利点亮旗标 duel_won")
+	var mofan: CharacterState = GameState.party[0]
+	var xue: CharacterState = GameState.party[1]
+	_check(mofan.dust_of(GameTypes.Element.LIGHTNING) > 0 or mofan.star_of(GameTypes.Element.LIGHTNING) > 0,
+			"出战者莫凡获得修为")
+	_check(xue.dust_of(GameTypes.Element.ICE) == GameTypes.STARDUST_PER_STAR
+			and xue.star_of(GameTypes.Element.ICE) == 2,
+			"观战者穆宁雪不结算修为（保持瓶颈封存态）")
+	battle.queue_free()
+	await get_tree().process_frame
+	GameState.new_game()
+
+
 ## 对话自动收起：台词进行中面板保持，连续台词不闪烁，序列结束后下一帧隐藏。
 func _test_dialogue_autoclose() -> void:
 	print("[对话收起]")
@@ -367,7 +398,9 @@ func _test_npc_and_objective() -> void:
 	GameState.flags["elite_wolf_dead"] = true
 	_check(city._objective_text().contains("查看"), "目标提示：查看狼王异常")
 	GameState.flags["chapter1_half_done"] = true
-	_check(city._objective_text().contains("后续"), "目标提示：前半完结")
+	_check(city._objective_text().contains("毕业决斗"), "目标提示：毕业决斗")
+	GameState.flags["duel_done"] = true
+	_check(city._objective_text().contains("后续版本"), "目标提示：决斗完结")
 	GameState.new_game()
 	city.free()
 

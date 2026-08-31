@@ -20,6 +20,8 @@ var flags: Dictionary = {}
 var pending_enemies: Array = []
 ## 战斗胜利后要点亮的剧情旗标（"" 为无，如明雷精英战）。
 var pending_flag: String = ""
+## 出战成员子集（成员 id 列表；空 = 全队出战，如毕业决斗限莫凡单人）。
+var pending_party_ids: Array = []
 ## 战斗来源地图（战斗结束回这里）。
 var battle_return_scene: String = ""
 ## 传送门目标出生格（-1, -1 表示无）。
@@ -44,6 +46,7 @@ func new_game() -> void:
 	flags = {}
 	pending_enemies = []
 	pending_flag = ""
+	pending_party_ids = []
 	battle_return_scene = ""
 	next_spawn = Vector2i(-1, -1)
 	return_position = Vector2.ZERO
@@ -136,12 +139,14 @@ func take_essence(id: String, count: int = 1) -> bool:
 
 ## 战斗胜利结算：每位存活成员向主修系注入修为，金币与精魄入账。
 ## 返回结算摘要（含成长事件），供战斗结果面板展示。
-func grant_battle_rewards(xp_each: int, gold_gain: int, essence_ids: Array) -> Dictionary:
+## 战斗结算：修为入账给 members（空 = 全队存活成员）、金币与精魄入包。
+func grant_battle_rewards(xp_each: int, gold_gain: int, essence_ids: Array, members: Array = []) -> Dictionary:
 	var summary := {"xp": xp_each, "gold": gold_gain, "essences": [], "events": []}
-	for m in party:
+	var receivers := members if not members.is_empty() else party
+	for m in receivers:
 		if m.hp <= 0:
 			continue
-		var el := m.main_element
+		var el: int = m.main_element
 		for ev in m.gain_xp(el, xp_each):
 			var entry := {"member": m.char_name, "ev": ev}
 			summary["events"].append(entry)

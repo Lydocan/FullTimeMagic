@@ -8,6 +8,7 @@ class_name StoryEvents
 
 const BO_CITY := "res://src/world/bo_city/bo_city.tscn"
 const MISTY_GROVE := "res://src/world/misty_grove/misty_grove.tscn"
+const DUEL_ARENA := "res://src/world/arena/duel_arena.tscn"
 
 const COL_MO := Color("c792ff")      # 莫凡（雷紫）
 const COL_TANG := Color("ffb3c8")    # 唐月
@@ -107,3 +108,59 @@ static func grove_after_boss(ctx) -> void:
 	await Dialogue.say("", "—— 第一章·前半 完 ——\n（后续将推进：地圣泉修行、毕业决斗、博城之变）", COL_SYS)
 	ctx.set_flag("chapter1_half_done")
 	ctx.unlock_player()
+
+
+## 天澜高中门口：先宇昂挑衅，第一章前半完后触发毕业决斗约定。
+static func school_gate(ctx) -> void:
+	if not ctx.flag("ch1_yuang_done"):
+		await yu_ang_taunt(ctx)
+		return
+	if not ctx.flag("duel_intro_done") and ctx.flag("chapter1_half_done"):
+		await graduation_duel_intro(ctx)
+
+
+## 毕业决斗·约定：天澜高中门口，赌上地圣泉名额（M3.1）。
+static func graduation_duel_intro(ctx) -> void:
+	ctx.lock_player()
+	await Dialogue.say("宇昂", "哟，有胆子来了。地圣泉的名额只有一个——敢不敢现在就去决斗台做个了断？", COL_YU)
+	await Dialogue.say("莫凡", "正合我意。决斗台上见真章。", COL_MO)
+	await Dialogue.say("唐月", "规则按校规来：一对一，点到为止……不，这次你们随意。我在台上看着。", COL_TANG)
+	await Dialogue.say("", "毕业决斗开始——只有莫凡一人可以上场。（决斗失败会读回最近的存档）", COL_SYS)
+	ctx.set_flag("duel_intro_done")
+	ctx.unlock_player()
+	ctx.warp(DUEL_ARENA)
+
+
+## 决斗台：入场开战（莫凡单人 vs 宇昂）→ 胜利演出 → 夺得名额（M3.1）。
+static func duel_arena(ctx) -> void:
+	if ctx.flag("duel_done") or not ctx.flag("duel_intro_done"):
+		return
+	ctx.lock_player()
+	if not ctx.flag("duel_fought"):
+		await Dialogue.say("宇昂", "全校都看着呢。让我看看，「百年一遇的双系天才」有几斤几两！", COL_YU)
+		await Dialogue.say("莫凡", "几招之后就知道了。……雷与火，可不止一种用法。", COL_MO)
+		ctx.set_flag("duel_fought")
+		ctx.unlock_player()
+		# 决斗限定莫凡单人出战（出战成员子集）
+		ctx.start_story_battle(["yu_ang"], "duel_won", ["mo_fan"])
+		return
+	# 胜利归来：战后演出
+	await Dialogue.say("宇昂", "不可能……我的炎爆怎么会输给……", COL_YU)
+	await Dialogue.say("宇昂", "……哼。决斗输了，名额归你。但博城的天，不会一直这么晴。——走着瞧。", COL_YU)
+	await Dialogue.say("", "宇昂转身离场，袖口滑出一角暗紫色的纹章，快得没人看清……只有莫凡眯了眯眼。", COL_SYS)
+	await Dialogue.say("唐月", "地圣泉的名额是你的了。三日后泉门开启，去准备吧。", COL_TANG)
+	await Dialogue.say("莫凡", "（那枚纹章……和狼王尸体上的气息，是同一路东西。）", COL_MO)
+	await Dialogue.say("", "—— 毕业决斗·完 ——\n夺得地圣泉修行资格！（地圣泉修行将在后续版本开放）", COL_SYS)
+	ctx.set_flag("duel_done")
+	ctx.unlock_player()
+	ctx.warp(BO_CITY)
+
+
+## 决斗台·唐月（裁判）闲谈。
+static func arena_referee(ctx) -> void:
+	if ctx.flag("duel_done"):
+		await Dialogue.say("唐月", "赢了决斗只是开始。地圣泉里，好好想想你的雷与火该怎么走。", COL_TANG)
+	elif ctx.flag("duel_fought"):
+		await Dialogue.say("唐月", "伤没好透就别急着再挑一场——决斗随时可以重来。", COL_TANG)
+	else:
+		await Dialogue.say("唐月", "决斗台上不许下死手。其他……你们自己解决。", COL_TANG)

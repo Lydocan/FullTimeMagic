@@ -41,7 +41,14 @@ var _target_hint: Label
 
 
 func _ready() -> void:
-	_party = GameState.party
+	_party.clear()
+	if GameState.pending_party_ids.is_empty():
+		_party = GameState.party.duplicate()
+	else:
+		# 出战成员子集（毕业决斗等）：未部署成员观战，不参战、不结算
+		for m in GameState.party:
+			if m.id in GameState.pending_party_ids:
+				_party.append(m)
 	for m in _party:
 		m.reset_battle_state()
 	_build_background()
@@ -744,7 +751,7 @@ func _win() -> void:
 		gold += e["data"].gold_value
 		if e["data"].essence_id != "" and randf() < e["data"].essence_chance:
 			essences.append(e["data"].essence_id)
-	var summary := GameState.grant_battle_rewards(xp_each, gold, essences)
+	var summary := GameState.grant_battle_rewards(xp_each, gold, essences, _party)
 	if GameState.pending_flag != "":
 		GameState.flags[GameState.pending_flag] = true
 		GameState.pending_flag = ""
@@ -760,6 +767,7 @@ func _lose() -> void:
 
 func _finish(victory: bool, fled: bool) -> void:
 	GameEvents.battle_finished.emit(victory, fled)
+	GameState.pending_party_ids = []
 	var target: String = GameState.battle_return_scene
 	if target == "" or not ResourceLoader.exists(target):
 		target = WORLD_SCENE
@@ -887,49 +895,27 @@ func _pause(seconds: float) -> void:
 
 func run_simulation() -> Dictionary:
 	var guard := 0
+	var actions := 0  # 玩家出招次数（≈回合数，供平衡区间验收）
 	while _phase != Phase.VICTORY and _phase != Phase.DEFEAT and guard < 800:
 		guard += 1
-		if _turn >= _order.size():
-			_end_of_round()
-			continue
-		var cur: Dictionary = _order[_turn]
-		if cur["side"] == "party":
-			var m := _party[cur["index"]]
-			if m.hp <= 0:
-				_advance()
-				continue
-			if m.paralyzed:
-				m.paralyzed = false
-				_advance()
-				continue
-			_member = m
-			var affordable := m.usable_spells(m.form_element()).filter(
-				func(s: SpellData) -> bool: return s.mp_cost <= m.mp
+		if _phase == Phase.COMMAND:
+			actions += 1
+			# 模拟决策：随机可用法术打首个存活敌人（防御兜底）
+			var affordable := _member.usable_spells(_member.form_element()).filter(
+				func(s: SpellData) -> bool: return s.mp_cost <= _member.mp
 			)
 			if affordable.is_empty():
-				m.defending = true
+				_member.defending = true
 				_advance()
 				continue
 			_spell = affordable.pick_random()
-			_boost = mini(1, m.battle_stars)
+			_boost = mini(1, _member.battle_stars)
 			var alive := _alive_enemies()
 			if alive.is_empty():
+				_advance()
 				continue
 			_target_entry = _enemies.find(alive[0])
 			await _resolve_player_spell()
 		else:
-			var e: Dictionary = _enemies[cur["index"]]
-			if e["hp"] <= 0:
-				_advance()
-				continue
-			if e["paralyzed"]:
-				e["paralyzed"] = false
-				_advance()
-				continue
-			if e["broken"]:
-				e["broken"] = false
-				e["shield"] = e["data"].shield
-				_advance()
-				continue
-			await _enemy_act(e)
-	return {"victory": _phase == Phase.VICTORY, "rounds": guard}
+			await _pause(0.05)  # 等待敌方/回合结算演出链自行推进
+	return {"victory": _phase == Phase.VICTORY, "rounds": actions}

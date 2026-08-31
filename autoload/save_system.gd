@@ -64,6 +64,7 @@ func apply_save_data(d: Dictionary) -> bool:
 	GameState.has_return_position = bool(d.get("has_return_position", false))
 	GameState.pending_enemies = []
 	GameState.pending_flag = ""
+	GameState.pending_party_ids = []
 	GameState.battle_return_scene = ""
 	GameState.next_spawn = Vector2i(-1, -1)
 	GameEvents.party_status_changed.emit()

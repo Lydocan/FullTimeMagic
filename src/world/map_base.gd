@@ -110,7 +110,8 @@ func add_trigger(cell: Vector2i, radius: float, event: Callable) -> void:
 	_triggers.append({"cell": cell, "radius": radius, "event": event})
 
 
-## 注册剧情 NPC：hide_flag 点亮后不再出现（人物退场）。
+## 注册剧情 NPC：hide_flag 点亮后不再出现（人物退场）。event 传无效
+## Callable（Callable()）则为纯装饰 NPC（无交互）。
 func add_npc(cell: Vector2i, texture: String, display_name: String, hide_flag: String, event: Callable) -> void:
 	_npcs.append({"cell": cell, "texture": texture, "name": display_name, "hide_flag": hide_flag, "event": event})
 
@@ -156,8 +157,9 @@ func unlock_player() -> void:
 	player.input_enabled = true
 
 
-func start_story_battle(ids: Array, win_flag: String) -> void:
-	_start_encounter(ids, win_flag, true)
+## 剧情战斗。party_ids 非空时限定出战成员子集（如毕业决斗限莫凡单人）。
+func start_story_battle(ids: Array, win_flag: String, party_ids: Array = []) -> void:
+	_start_encounter(ids, win_flag, true, party_ids)
 
 
 func warp(scene_path: String) -> void:
@@ -296,7 +298,7 @@ func _spawn_npc(n: Dictionary) -> void:
 	npc.hide_flag = n["hide_flag"]
 	if n.has("wares"):
 		npc.event = func() -> void: _open_shop(n["wares"])
-	else:
+	elif n["event"].is_valid():
 		npc.event = func() -> void: run_event(n["event"])
 	add_child(npc)
 	_npc_nodes.append(npc)
@@ -367,7 +369,7 @@ func _pick_encounter(table: Array) -> Array:
 ## 遇敌入口。from_event=true 表示由剧情事件内部发起（教学战等）：
 ## 此时正处于 run_event 互斥中，必须绕过事件守卫，否则剧情战永远开不出来。
 ## 随机遭遇与明雷精英仍受守卫约束（演出中/菜单中不乱入）。
-func _start_encounter(ids: Array, win_flag: String, from_event := false) -> void:
+func _start_encounter(ids: Array, win_flag: String, from_event := false, party_ids: Array = []) -> void:
 	if _encounter_blocked(from_event):
 		return
 	Audio.play_sfx("encounter")
@@ -377,6 +379,7 @@ func _start_encounter(ids: Array, win_flag: String, from_event := false) -> void
 	GameState.has_return_position = true
 	GameState.pending_enemies = ids
 	GameState.pending_flag = win_flag
+	GameState.pending_party_ids = party_ids
 	GameState.battle_return_scene = scene_file_path
 	GameEvents.encounter_started.emit(ids)
 	get_tree().change_scene_to_file(BATTLE_SCENE)
@@ -450,7 +453,7 @@ func _essence_short(eid: String) -> String:
 	return eid
 
 
-## 当前主线目标（按剧情旗标推进，序章 → 第一章前半）。
+## 当前主线目标（按剧情旗标推进，序章 → 第一章前半 → 毕业决斗）。
 func _objective_text() -> String:
 	if not flag("prologue_awaken_done"):
 		return "目标：参加觉醒典礼"
@@ -464,7 +467,9 @@ func _objective_text() -> String:
 		return "目标：讨伐灰雾林地深处的「独眼魔狼王」"
 	if not flag("chapter1_half_done"):
 		return "目标：狼王死后有异样，去林地深处查看"
-	return "第一章·前半 完——地圣泉修行与博城之变将在后续版本推进"
+	if not flag("duel_done"):
+		return "目标：天澜高中门口——毕业决斗，夺得地圣泉名额"
+	return "毕业决斗·完——地圣泉修行将在后续版本开放"
 
 
 ## —— 菜单骨架（篝火/商店/背包共用） ——

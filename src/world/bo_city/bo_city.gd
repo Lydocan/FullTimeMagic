@@ -58,8 +58,8 @@ func setup_triggers() -> void:
 	add_portal(NORTH_GATE, GROVE_SCENE, Vector2i(7, 20))
 	# 序章：出生点自动触发（穿越 + 觉醒典礼）
 	add_trigger(SPAWN_CELL, 56.0, func() -> void: await Story.prologue(self))
-	# 天澜高中门口：宇昂挑衅
-	add_trigger(Vector2i(13, 6), 56.0, func() -> void: await Story.yu_ang_taunt(self))
+	# 天澜高中门口：先宇昂挑衅，前半完后触发毕业决斗约定（按旗标分发）
+	add_trigger(Vector2i(13, 6), 56.0, func() -> void: await Story.school_gate(self))
 	# 东街：重逢穆宁雪
 	add_trigger(Vector2i(30, 12), 56.0, func() -> void: await Story.meet_mu_ningxue(self))
 	# —— 剧情 NPC（事件演完后退场）——

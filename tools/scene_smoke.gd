@@ -6,6 +6,7 @@ const MAP_SCENES := [
 	"res://src/world/test_wilds/test_wilds.tscn",
 	"res://src/world/bo_city/bo_city.tscn",
 	"res://src/world/misty_grove/misty_grove.tscn",
+	"res://src/world/arena/duel_arena.tscn",
 ]
 
 
@@ -13,7 +14,8 @@ func _ready() -> void:
 	print("=== 场景冒烟 ===")
 	# 预置剧情旗标：所有触发器直接 early-return，不弹对话
 	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_done",
-			"prologue_tutorial_done", "ch1_mufu_done", "ch1_yuang_done"]:
+			"prologue_tutorial_done", "ch1_mufu_done", "ch1_yuang_done",
+			"chapter1_half_done", "duel_intro_done", "duel_fought", "duel_won", "duel_done"]:
 		GameState.flags[f] = true
 	var ok := true
 	for path in MAP_SCENES:
