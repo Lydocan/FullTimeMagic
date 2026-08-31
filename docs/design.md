@@ -1,7 +1,7 @@
 # FullTimeMagic 游戏设计文档（GDD）
 
 > 状态：v0.2 已定案（2026-08-31）。
-> 相关文档：[世界观设定](world.md) · [人物设定](characters.md) · [玩法系统](gameplay.md)
+> 相关文档：[世界观设定](world.md) · [人物设定](characters.md) · [玩法系统](gameplay.md) · [开发教训与设计心得](lessons.md)
 
 ## 一句话概述
 
