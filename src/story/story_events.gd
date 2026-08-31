@@ -91,7 +91,7 @@ static func yu_ang_taunt(ctx) -> void:
 	await Dialogue.say("宇昂", "哟，这不是穆家的……未婚夫吗？双系觉醒，很风光啊。", COL_YU)
 	await Dialogue.say("宇昂", "可惜。博城能去地圣泉的名额只有一个。毕业决斗上，我会当众碾碎你的雷火把戏。", COL_YU)
 	await Dialogue.say("莫凡", "决斗台上见。到时候别哭。", COL_MO)
-	await Dialogue.say("", "（毕业决斗将在第一章后半上演——当前版本可先去城北林地修炼。）", COL_SYS)
+	await Dialogue.say("", "（宇昂虎视眈眈——先去灰雾林地变强，前路自会展开。）", COL_SYS)
 	ctx.set_flag("ch1_yuang_done")
 	ctx.unlock_player()
 
@@ -104,19 +104,27 @@ static func grove_after_boss(ctx) -> void:
 	await Dialogue.say("唐月", "狼王的独眼在死后仍泛着紫光……这不是天然生成的妖兽。", COL_TANG)
 	await Dialogue.say("唐月", "有人在操控妖魔。这股气息……和传闻中「黑教廷」的手法很像。", COL_TANG)
 	await Dialogue.say("莫凡", "黑教廷？", COL_MO)
-	await Dialogue.say("唐月", "此事我会呈报判庭。你先回城休整——变强的路，还很长。", COL_TANG)
-	await Dialogue.say("", "—— 第一章·前半 完 ——\n（后续将推进：地圣泉修行、毕业决斗、博城之变）", COL_SYS)
+	await Dialogue.say("唐月", "此事我会呈报判庭。倒是你——回城之后，还有一件未了的事吧？", COL_TANG)
+	await Dialogue.say("莫凡", "嗯。跟宇昂的账——毕业决斗。", COL_MO)
+	await Dialogue.say("唐月", "以你如今猎杀狼王的身手，正好去会一会他。打赢他，地圣泉的名额就是你的。", COL_TANG)
+	await Dialogue.say("", "—— 第一章·前半 完 ——\n（去天澜高中门口，与宇昂做个了断）", COL_SYS)
 	ctx.set_flag("chapter1_half_done")
 	ctx.unlock_player()
 
 
-## 天澜高中门口：先宇昂挑衅，第一章前半完后触发毕业决斗约定。
+## 天澜高中门口：先宇昂挑衅，第一章前半完后触发毕业决斗约定；
+## 平时靠近给闲聊台词（宇昂在决斗结束、剧情离场前一直站在校门口）。
 static func school_gate(ctx) -> void:
 	if not ctx.flag("ch1_yuang_done"):
 		await yu_ang_taunt(ctx)
 		return
 	if not ctx.flag("duel_intro_done") and ctx.flag("chapter1_half_done"):
 		await graduation_duel_intro(ctx)
+		return
+	if ctx.flag("chapter1_half_done"):
+		await Dialogue.say("宇昂", "台上见分晓的话，我已经说完了。磨蹭什么？", COL_YU)
+		return
+	await Dialogue.say("宇昂", "地圣泉的名额只有一个。你练得再久，也只是给我递刀。", COL_YU)
 
 
 ## 毕业决斗·约定：天澜高中门口，赌上地圣泉名额（M3.1）。

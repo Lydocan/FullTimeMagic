@@ -66,11 +66,9 @@ func elite_spawns() -> Array:
 func setup_triggers() -> void:
 	add_campfire(CAMP_CELL)
 	add_portal(SOUTH_GATE, BO_CITY_SCENE, Vector2i(20, 2))
-	# 序章教学战（唐月指导；半径覆盖唐月 NPC 周身，战后归来可自动续演）
-	add_trigger(Vector2i(8, 17), 96.0, func() -> void: await Story.grove_tutorial(self))
-	# 讨伐狼王后的黑教廷线索
+	# 讨伐狼王后的黑教廷线索（场景事件：战归来到尸体旁自动演出，非 NPC 对话）
 	add_trigger(Vector2i(34, 13), 96.0, func() -> void: await Story.grove_after_boss(self))
-	# 唐月在林地入口等莫凡（教学战期间在场）
+	# 唐月在林地入口等莫凡（教学战期间在场，按 E 触发教学战）
 	add_npc(Vector2i(8, 18), "res://assets/images/char_tangyue.png",
 			"唐月", "prologue_done",
 			func() -> void: await Story.grove_tutorial(self))

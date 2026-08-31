@@ -16,7 +16,7 @@ const MAP_SCRIPTS := {
 	"res://src/world/misty_grove/misty_grove.tscn": "res://src/world/misty_grove/misty_grove.gd",
 	"res://src/world/arena/duel_arena.tscn": "res://src/world/arena/duel_arena.gd",
 }
-const BLOCKED := "TRW"  # 树/岩石/水为阻挡格
+const BLOCKED := "TRWFBD"  # 树/岩石/水/屋顶/墙/门为阻挡格
 
 ## 按路径引用基类，避免 class_name 全局缓存过期时解析失败
 const MapBaseScript := preload("res://src/world/map_base.gd")
@@ -366,7 +366,7 @@ func _wait_typed() -> void:
 ## 剧情引导：NPC 注册完整性（站格可通行/退场旗标有效/立绘存在）与目标提示推进。
 func _test_npc_and_objective() -> void:
 	print("[剧情引导]")
-	var known_flags := ["prologue_awaken_done", "prologue_done", "ch1_mufu_done", "ch1_yuang_done"]
+	var known_flags := ["prologue_awaken_done", "prologue_done", "ch1_mufu_done", "ch1_yuang_done", "duel_done"]
 	var npc_total := 0
 	var npc_ok := true
 	for scene_path in MAP_SCRIPTS:

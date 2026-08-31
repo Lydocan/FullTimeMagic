@@ -48,6 +48,7 @@ FullTimeMagic/
 │   ├── main/            #   主场景（标题界面，待做）
 │   └── ui/              #   界面（背包、对话框、HUD 等，待做）
 ├── assets/              # 素材（images/ audio/ 为程序生成的占位美术与音频，正式素材就位后替换）
+│   └── images/tiles_proto.png 含 9 种瓦片：草地/深草/小径/树/岩石/水/屋顶/墙体/门
 ├── resources/           # 自定义 .tres 数据（spells/ 法术、monsters/ 妖魔）
 ├── tools/               # 开发工具脚本与无头冒烟测试
 ├── shaders/  themes/  addons/

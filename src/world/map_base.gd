@@ -21,13 +21,18 @@ const MEMBER_TEXTURES := {
 	"mu_ningxue": "res://assets/images/char_muningxue.png",
 }
 
-# tiles_proto.png 的 6 格横向图块。
+# tiles_proto.png 的 11 格横向图块。
 const T_GRASS := Vector2i(0, 0)
 const T_TALL := Vector2i(1, 0)
 const T_PATH := Vector2i(2, 0)
 const T_TREE := Vector2i(3, 0)
 const T_ROCK := Vector2i(4, 0)
 const T_WATER := Vector2i(5, 0)
+const T_ROOF := Vector2i(6, 0)   # 'F' 屋顶（蓝瓦）
+const T_WALL := Vector2i(7, 0)   # 'B' 墙体
+const T_DOOR := Vector2i(8, 0)   # 'D' 门（建筑立面，不可进入）
+const T_SROOF := Vector2i(9, 0)  # 'C' 校舍红瓦
+const T_SPIRE := Vector2i(10, 0) # 'U' 校舍尖塔
 
 var player: CharacterBody2D
 var tilemap: TileMapLayer
@@ -176,6 +181,7 @@ func run_event(event: Callable) -> void:
 		player.input_enabled = true
 	_event_running = false
 	_retire_npcs()
+	_refresh_hud()  # 事件可能推进了剧情旗标，目标提示随之更新
 
 
 ## 事件收尾统一退场检查：hide_flag 已点亮的 NPC 当场离场。
@@ -208,11 +214,11 @@ func _build_tilemap() -> void:
 	var src := TileSetAtlasSource.new()
 	src.texture = load("res://assets/images/tiles_proto.png")
 	src.texture_region_size = Vector2i(TILE, TILE)
-	for i in 6:
+	for i in 11:
 		src.create_tile(Vector2i(i, 0))
 	# 先挂到 TileSet（图块数据才知道有几个物理层），再配置碰撞。
 	ts.add_source(src, 0)
-	for blocked in [T_TREE, T_ROCK, T_WATER]:
+	for blocked in [T_TREE, T_ROCK, T_WATER, T_ROOF, T_WALL, T_DOOR, T_SROOF, T_SPIRE]:
 		var td := src.get_tile_data(blocked, 0)
 		td.add_collision_polygon(0)
 		td.set_collision_polygon_points(0, 0, PackedVector2Array([
@@ -230,6 +236,11 @@ func _build_tilemap() -> void:
 				"T": coords = T_TREE
 				"R": coords = T_ROCK
 				"W": coords = T_WATER
+				"F": coords = T_ROOF
+				"B": coords = T_WALL
+				"D": coords = T_DOOR
+				"C": coords = T_SROOF
+				"U": coords = T_SPIRE
 			tilemap.set_cell(Vector2i(x, y), 0, coords)
 
 
@@ -294,6 +305,7 @@ func _sync_followers() -> void:
 func _spawn_npc(n: Dictionary) -> void:
 	var npc: Area2D = NPC_SCRIPT.new()
 	npc.position = _cell_center(n["cell"])
+	npc.texture = load(n["texture"])
 	npc.display_name = n["name"]
 	npc.hide_flag = n["hide_flag"]
 	if n.has("wares"):

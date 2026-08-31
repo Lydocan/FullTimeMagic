@@ -39,10 +39,10 @@ func _save(img: Image, name: String) -> void:
 	print("生成 %s -> %s" % [name, "成功" if err == OK else "失败(%d)" % err])
 
 
-## 图块集：32px × 6（草地/深草/小径/树/岩石/水），横向排布。
+## 图块集：32px × 11（草地/深草/小径/树/岩石/水/屋顶/墙体/门/红瓦/尖塔），横向排布。
 func _tiles() -> void:
-	var img := _img(32 * 6, 32)
-	for i in 6:
+	var img := _img(32 * 11, 32)
+	for i in 11:
 		var ox := i * 32
 		match i:
 			0: # 草地
@@ -76,6 +76,33 @@ func _tiles() -> void:
 				_rect(img, ox + 4, 7, 10, 1, Color("5586b8"))
 				_rect(img, ox + 16, 15, 12, 1, Color("5586b8"))
 				_rect(img, ox + 8, 24, 9, 1, Color("4d7cae"))
+			6: # 屋顶（蓝瓦，阻挡）
+				_rect(img, ox, 0, 32, 32, Color("3e4c6e"))
+				_rect(img, ox, 0, 32, 3, Color("55679a"))
+				for ry in [8, 16, 24]:
+					_rect(img, ox, ry, 32, 2, Color("2e3a57"))
+			7: # 墙体（米白 + 木框窗，阻挡）
+				_rect(img, ox, 0, 32, 32, Color("d8cdb8"))
+				_rect(img, ox, 28, 32, 4, Color("b8ac96"))
+				_rect(img, ox + 8, 8, 14, 12, Color("6b4a2f"))
+				_rect(img, ox + 10, 10, 10, 8, Color("9cc4e8"))
+			8: # 门（墙体 + 拱形木门，阻挡）
+				_rect(img, ox, 0, 32, 32, Color("d8cdb8"))
+				_rect(img, ox + 6, 4, 20, 28, Color("6b4a2f"))
+				_rect(img, ox + 8, 6, 16, 26, Color("8a6238"))
+				_rect(img, ox + 21, 18, 2, 2, Color("ffd166"))
+			9: # 校舍红瓦（阻挡）
+				_rect(img, ox, 0, 32, 32, Color("a03c3c"))
+				_rect(img, ox, 0, 32, 3, Color("c25858"))
+				for ry in [8, 16, 24]:
+					_rect(img, ox, ry, 32, 2, Color("7c2c2c"))
+			10: # 校舍尖塔（红瓦金字塔 + 金顶饰，阻挡）
+				_rect(img, ox, 14, 32, 18, Color("a03c3c"))
+				for r in 7:
+					var w := 8 + r * 4
+					_rect(img, ox + (32 - w) / 2, r * 2, w, 2, Color("a03c3c"))
+					_rect(img, ox + (32 - w) / 2, r * 2 + 1, w, 1, Color("7c2c2c"))
+				_rect(img, ox + 14, 0, 4, 3, Color("ffd166"))
 	_save(img, "tiles_proto.png")
 
 
