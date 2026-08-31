@@ -1,13 +1,25 @@
 extends Node
-## M1 冒烟测试：无头验证位阶成长、瓶颈突破与战斗模拟。
+## M2 冒烟测试：无头验证位阶成长、瓶颈突破、战斗模拟、存档序列化与地图完整性。
 ##
 ## 运行：godot --headless --path . res://tools/smoke_test.tscn
 ## 退出码 0 = 全部通过，1 = 存在失败项。
+## 注意：只测 make_save_data / apply_save_data 纯数据往返，不写 savegame.json，
+## 避免覆盖玩家的真实存档。
 
 var _failures: Array[String] = []
+var _total := 0
+
+## 场景路径 → 脚本路径（地图完整性测试用）。
+const MAP_SCRIPTS := {
+	"res://src/world/test_wilds/test_wilds.tscn": "res://src/world/test_wilds/test_wilds.gd",
+	"res://src/world/bo_city/bo_city.tscn": "res://src/world/bo_city/bo_city.gd",
+	"res://src/world/misty_grove/misty_grove.tscn": "res://src/world/misty_grove/misty_grove.gd",
+}
+const BLOCKED := "TRW"  # 树/岩石/水为阻挡格
 
 
 func _check(cond: bool, label: String) -> void:
+	_total += 1
 	if cond:
 		print("  PASS  ", label)
 	else:
@@ -16,15 +28,18 @@ func _check(cond: bool, label: String) -> void:
 
 
 func _ready() -> void:
-	print("=== FullTimeMagic M1 冒烟测试 ===")
+	print("=== FullTimeMagic M2 冒烟测试 ===")
 	_test_rank_progression()
 	_test_breakthrough()
 	await _test_battle_simulation()
+	_test_character_serialization()
+	_test_save_roundtrip()
+	_test_map_integrity()
 	if _failures.is_empty():
-		print("=== 全部通过 ===")
+		print("=== 全部通过（%d 项）===" % _total)
 		get_tree().quit(0)
 	else:
-		printerr("=== 失败 %d 项 ===" % _failures.size())
+		printerr("=== 失败 %d / %d 项 ===" % [_failures.size(), _total])
 		get_tree().quit(1)
 
 
@@ -83,6 +98,8 @@ func _test_breakthrough() -> void:
 func _test_battle_simulation() -> void:
 	print("[战斗模拟]")
 	GameState.new_game()
+	GameState.join_member(PartySetup.mu_ningxue())
+	_check(GameState.party.size() == 2, "剧情入队：莫凡 + 穆宁雪")
 	GameState.pending_enemies = ["rat_swarm", "rat_swarm"]
 	GameState.pending_flag = ""
 	var battle: Node2D = (load("res://src/battle/battle.tscn") as PackedScene).instantiate()
@@ -100,3 +117,92 @@ func _test_battle_simulation() -> void:
 			"穆宁雪瓶颈期修为封存（星子保持圆满 7/7）")
 	battle.queue_free()
 	await get_tree().process_frame
+
+
+## 角色序列化：to_dict → JSON → from_dict 往返（真实存档路径）。
+func _test_character_serialization() -> void:
+	print("[角色序列化]")
+	var m := PartySetup.mo_fan()
+	m.gain_xp(GameTypes.Element.LIGHTNING, 8)
+	m.main_element = GameTypes.Element.FIRE
+	m.hp = 55
+	m.mp = 7
+	# JSON.parse_string 返回 Variant，不能用 := 推断（项目将其视为错误）
+	var json = JSON.parse_string(JSON.stringify(m.to_dict()))
+	var m2 := CharacterState.from_dict(json)
+	_check(m2.id == m.id and m2.char_name == m.char_name, "角色往返：id 与名字")
+	_check(m2.elements == m.elements and m2.main_element == m.main_element, "角色往返：元素与主修")
+	_check(m2.stage_of(GameTypes.Element.LIGHTNING) == m.stage_of(GameTypes.Element.LIGHTNING)
+			and m2.star_of(GameTypes.Element.LIGHTNING) == m.star_of(GameTypes.Element.LIGHTNING)
+			and m2.dust_of(GameTypes.Element.LIGHTNING) == m.dust_of(GameTypes.Element.LIGHTNING),
+			"角色往返：位阶进度（阶/星/修为）")
+	_check(m2.spells.size() == m.spells.size(), "角色往返：法术表")
+	_check(m2.max_hp == m.max_hp and m2.magic == m.magic and m2.speed == m.speed, "角色往返：基础属性")
+	_check(m2.hp == 55 and m2.mp == 7, "角色往返：当前 HP/MP")
+	_check(m2.eff_max_hp() == m.eff_max_hp(), "角色往返：星子加成恢复")
+
+
+## 存档往返：make_save_data → JSON → apply_save_data（不落盘）。
+func _test_save_roundtrip() -> void:
+	print("[存档往返]")
+	GameState.new_game()
+	GameState.gold = 77
+	GameState.add_essence("essence_fire")
+	GameState.add_essence("essence_fire")
+	GameState.flags["test_flag"] = true
+	GameState.join_member(PartySetup.mu_ningxue())
+	GameState.return_position = Vector2(123, 456)
+	GameState.has_return_position = true
+	var save = JSON.parse_string(JSON.stringify(SaveSystem.make_save_data()))
+	GameState.new_game()
+	_check(GameState.party.size() == 1, "new_game 后仅莫凡一人")
+	_check(SaveSystem.apply_save_data(save), "存档数据应用成功")
+	_check(GameState.gold == 77, "读档：金币")
+	_check(GameState.essence_count("essence_fire") == 2, "读档：精魄")
+	_check(GameState.flags.get("test_flag", false), "读档：剧情旗标")
+	_check(GameState.party.size() == 2 and GameState.party[1].char_name == "穆宁雪", "读档：队伍含穆宁雪")
+	_check(GameState.return_position == Vector2(123, 456) and GameState.has_return_position, "读档：返回坐标")
+	_check(GameState.pending_enemies.is_empty() and GameState.pending_flag == "", "读档：战斗残留清空")
+
+
+## 地图完整性：行列结构、出生点/触发点/传送门两端/精英格均可通行。
+func _test_map_integrity() -> void:
+	print("[地图完整性]")
+	var maps := {}
+	for scene_path in MAP_SCRIPTS:
+		var map: MapBase = (load(MAP_SCRIPTS[scene_path]) as GDScript).new()
+		map.setup_triggers()  # 注册触发器/传送门/篝火（不入树，仅数据层校验）
+		maps[scene_path] = map
+	for scene_path in maps:
+		var map: MapBase = maps[scene_path]
+		var name: String = scene_path.get_file()
+		var rows := map.map_rows()
+		_check(rows.size() % 4 == 0, "%s：地图行数为 4 的倍数" % name)
+		var width_ok := true
+		for r in rows:
+			if str(r).length() != 10:
+				width_ok = false
+		_check(width_ok, "%s：每段恰好 10 格" % name)
+		_check(not BLOCKED.contains(map._cell_char(map.start_cell())), "%s：出生点可通行" % name)
+		var trig_ok := true
+		for t in map._triggers:
+			if BLOCKED.contains(map._cell_char(t["cell"])):
+				trig_ok = false
+		_check(trig_ok, "%s：剧情触发点均可通行" % name)
+		var portal_ok := true
+		for p in map._portals:
+			if BLOCKED.contains(map._cell_char(p["cell"])):
+				portal_ok = false
+			# 目的地出生格在目标地图上也要能站人（跨地图校验）
+			var target: MapBase = maps.get(p["target"])
+			if target != null and BLOCKED.contains(target._cell_char(p["spawn"])):
+				portal_ok = false
+		_check(portal_ok, "%s：传送门两端均可通行" % name)
+		var elite_bad := ""
+		for e in map.elite_spawns():
+			var ch: String = map._cell_char(e["cell"])
+			if BLOCKED.contains(ch):
+				elite_bad += "%s=%s " % [e["cell"], ch]
+		_check(elite_bad.is_empty(), "%s：精英格可通行 %s" % [name, elite_bad])
+	for map in maps.values():
+		map.free()

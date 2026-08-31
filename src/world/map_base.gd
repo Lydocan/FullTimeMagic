@@ -147,10 +147,11 @@ func run_event(event: Callable) -> void:
 
 func _cell_char(cell: Vector2i) -> String:
 	var rows := map_rows()
-	if cell.x < 0 or cell.y < 0 or cell.y >= rows.size() / CHUNK:
+	# 每 4 段为一个地图行；rows.size() 为 4 的倍数，整除即地图行数
+	if cell.x < 0 or cell.y < 0 or cell.y >= rows.size() / 4:
 		return "T"
 	var row: String = rows[cell.y * 4 + int(cell.x / float(CHUNK))]
-	if cell.x >= row.length():
+	if cell.x % CHUNK >= row.length():
 		return "T"
 	return row[cell.x % CHUNK]
 
