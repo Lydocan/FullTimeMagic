@@ -136,7 +136,7 @@ func unlock_player() -> void:
 
 
 func start_story_battle(ids: Array, win_flag: String) -> void:
-	_start_encounter(ids, win_flag)
+	_start_encounter(ids, win_flag, true)
 
 
 func warp(scene_path: String) -> void:
@@ -279,6 +279,11 @@ func _on_player_moved(distance: float) -> void:
 			GameState.next_spawn = p["spawn"]
 			get_tree().change_scene_to_file(p["target"])
 			return
+	# 剧情触发器（走近即演；事件内部自带旗标守卫，可安全重入）
+	for t in _triggers:
+		if player.global_position.distance_to(_cell_center(t["cell"])) <= float(t["radius"]):
+			run_event(t["event"])
+			return
 	# 暗雷
 	var table := encounter_table()
 	if table.is_empty():
@@ -305,8 +310,11 @@ func _pick_encounter(table: Array) -> Array:
 	return table[0]["ids"]
 
 
-func _start_encounter(ids: Array, win_flag: String) -> void:
-	if _event_running or _menu != null:
+## 遇敌入口。from_event=true 表示由剧情事件内部发起（教学战等）：
+## 此时正处于 run_event 互斥中，必须绕过事件守卫，否则剧情战永远开不出来。
+## 随机遭遇与明雷精英仍受守卫约束（演出中/菜单中不乱入）。
+func _start_encounter(ids: Array, win_flag: String, from_event := false) -> void:
+	if _encounter_blocked(from_event):
 		return
 	_cooling = true
 	player.input_enabled = false
@@ -317,6 +325,11 @@ func _start_encounter(ids: Array, win_flag: String) -> void:
 	GameState.battle_return_scene = scene_file_path
 	GameEvents.encounter_started.emit(ids)
 	get_tree().change_scene_to_file(BATTLE_SCENE)
+
+
+## 遭遇是否应被拦下：随机/精英遭遇在演出中或菜单中拦下；剧情战（事件内部发起）放行。
+func _encounter_blocked(from_event: bool) -> bool:
+	return not from_event and (_event_running or _menu != null)
 
 
 ## —— HUD ——

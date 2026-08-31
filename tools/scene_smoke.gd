@@ -34,5 +34,39 @@ func _ready() -> void:
 				path.get_file(), tiles.get_used_cells().size(), player.global_position])
 		scene.free()
 		await get_tree().process_frame
+	var trig_ok: bool = await _test_walk_trigger_and_story_battle()
+	ok = trig_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
+
+
+## 专项回归：①走动触发（此前只在入场瞬间检查，剧情点走路永远打不开）；
+## ②剧情战绕过事件互斥守卫（此前被 _event_running 拦下，教学战开不出来）。
+func _test_walk_trigger_and_story_battle() -> bool:
+	print("[走动触发与剧情战]")
+	var ok := true
+	# 摘掉穆宁雪旗标，让事件真正挂起在对话上（无头环境不会推进）
+	GameState.flags.erase("ch1_mufu_done")
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout  # 覆盖 _apply_entry_position 计时
+	var player: Node2D = city.get("player")
+	player.global_position = city._cell_center(Vector2i(29, 12))  # 穆宁雪触发圈内
+	city._on_player_moved(1.0)
+	var fired: bool = city._event_running
+	if fired:
+		print("  PASS  走入剧情圈触发事件（穆宁雪·东街）")
+	else:
+		printerr("  FAIL  走入剧情圈未触发事件")
+		ok = false
+	# 守卫分支：演出中随机遭遇被拦、剧情战放行
+	city._menu = null
+	var guard_ok: bool = city._encounter_blocked(false) and not city._encounter_blocked(true)
+	if guard_ok:
+		print("  PASS  事件互斥守卫：随机战拦下 / 剧情战放行")
+	else:
+		printerr("  FAIL  事件互斥守卫分支错误")
+		ok = false
+	city.free()
+	await get_tree().process_frame
+	return ok
