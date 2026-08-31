@@ -686,14 +686,18 @@ func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, event
 				"bottleneck":
 					box.add_child(_result_label("★ %s 达到三星圆满，进入瓶颈（去营地突破）" % m_name))
 	else:
-		box.add_child(_result_label("众人被路过的巡逻猎人救回营地。（下次小心）"))
+		box.add_child(_result_label("众人力竭倒下……再睁眼，已回到上次的安歇之地。"))
+		box.add_child(_result_label("（读回最近存档；尚无存档则从新的旅程开始）"))
 
 	var btn := Button.new()
-	btn.text = "继续（回车）"
+	btn.text = "继续（回车）" if victory else "回到存档点（回车）"
 	btn.pressed.connect(func() -> void:
 		if not victory:
-			GameState.rest_at_camp()
-		_finish(victory, false)
+			# 战败：读回最近存档（无存档重开新旅程），永不回原地再战
+			GameEvents.battle_finished.emit(false, false)
+			get_tree().change_scene_to_file(SaveSystem.defeat_return_scene())
+			return
+		_finish(true, false)
 	)
 	box.add_child(btn)
 	btn.grab_focus()

@@ -4,11 +4,13 @@ extends Node
 ## 单存档位 JSON（user://savegame.json）。存/读数据与场景切换分离：
 ## make_save_data / apply_save_data 可独立测试，save_game / load_game 面向玩家。
 
-const SAVE_PATH := "user://savegame.json"
+const FIRST_SCENE := "res://src/world/bo_city/bo_city.tscn"
+## 存档路径用 var 而非 const：冒烟测试重定向到隔离文件，不碰真实存档。
+var save_path := "user://savegame.json"
 
 
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	return FileAccess.file_exists(save_path)
 
 
 ## 收集当前状态为可序列化字典（不落盘）。
@@ -54,38 +56,58 @@ func apply_save_data(d: Dictionary) -> bool:
 	GameState.has_return_position = bool(d.get("has_return_position", false))
 	GameState.pending_enemies = []
 	GameState.pending_flag = ""
+	GameState.battle_return_scene = ""
 	GameState.next_spawn = Vector2i(-1, -1)
 	GameEvents.party_status_changed.emit()
 	return true
 
 
 func save_game() -> Error:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var f := FileAccess.open(save_path, FileAccess.WRITE)
 	if f == null:
-		push_error("存档写入失败：%s" % SAVE_PATH)
+		push_error("存档写入失败：%s" % save_path)
 		return FAILED
 	f.store_string(JSON.stringify(make_save_data(), "\t"))
 	f.close()
 	return OK
 
 
-## 读档并切换到存档场景。返回是否成功。
-func load_game() -> bool:
+## 读出存档数据（不应用、不切场景）。不存在或损坏返回空字典。
+func _read_save() -> Dictionary:
 	if not has_save():
-		return false
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+		return {}
+	var f := FileAccess.open(save_path, FileAccess.READ)
 	if f == null:
-		return false
+		return {}
 	var parsed = JSON.parse_string(f.get_as_text())
 	f.close()
 	if typeof(parsed) != TYPE_DICTIONARY:
 		push_error("存档解析失败")
+		return {}
+	return parsed
+
+
+## 读档并切换到存档场景。返回是否成功。
+func load_game() -> bool:
+	var d := _read_save()
+	if d.is_empty() or not apply_save_data(d):
 		return false
-	if not apply_save_data(parsed):
-		return false
-	var scene: String = parsed.get("scene", "")
+	var scene: String = d.get("scene", "")
 	if scene != "" and ResourceLoader.exists(scene):
 		get_tree().change_scene_to_file(scene)
 		return true
 	push_error("存档场景无效：%s" % scene)
 	return false
+
+
+## 战败恢复（歧路旅人式）：读回最近存档——状态与剧情进度回到存档时刻；
+## 无存档或存档不可用则重开新旅程。只恢复状态并返回去向场景路径，
+## 场景切换由调用方执行。战败永不回原地，避免同一场战斗无限重打。
+func defeat_return_scene() -> String:
+	var d := _read_save()
+	if not d.is_empty() and apply_save_data(d):
+		var scene: String = d.get("scene", "")
+		if scene != "" and ResourceLoader.exists(scene):
+			return scene
+	GameState.new_game()
+	return FIRST_SCENE

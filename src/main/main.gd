@@ -1,8 +1,6 @@
 extends Control
 ## 标题界面：新的旅程 / 继续旅程 / 退出。全键盘可操作（方向键 + 回车）。
 
-const FIRST_SCENE := "res://src/world/bo_city/bo_city.tscn"
-
 
 func _ready() -> void:
 	var bg := ColorRect.new()
@@ -63,11 +61,11 @@ func _ready() -> void:
 
 func _on_new_game() -> void:
 	GameState.new_game()
-	get_tree().change_scene_to_file(FIRST_SCENE)
+	get_tree().change_scene_to_file(SaveSystem.FIRST_SCENE)
 
 
 func _on_continue() -> void:
 	if not SaveSystem.load_game():
 		# 存档损坏时回退为新游戏
 		GameState.new_game()
-		get_tree().change_scene_to_file(FIRST_SCENE)
+		get_tree().change_scene_to_file(SaveSystem.FIRST_SCENE)

@@ -37,6 +37,7 @@ func _ready() -> void:
 	await _test_battle_simulation()
 	_test_character_serialization()
 	_test_save_roundtrip()
+	_test_defeat_recovery()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
 	if _failures.is_empty():
@@ -167,6 +168,39 @@ func _test_save_roundtrip() -> void:
 	_check(GameState.party.size() == 2 and GameState.party[1].char_name == "穆宁雪", "读档：队伍含穆宁雪")
 	_check(GameState.return_position == Vector2(123, 456) and GameState.has_return_position, "读档：返回坐标")
 	_check(GameState.pending_enemies.is_empty() and GameState.pending_flag == "", "读档：战斗残留清空")
+
+
+## 战败恢复：读回存档（状态还原、战斗残留清空）；无存档重开新旅程。
+## 用隔离存档路径跑，不碰真实 savegame.json。
+func _test_defeat_recovery() -> void:
+	print("[战败恢复]")
+	var real_path: String = SaveSystem.save_path
+	SaveSystem.save_path = "user://ftm_smoke_save.json"
+	if FileAccess.file_exists(SaveSystem.save_path):
+		DirAccess.remove_absolute(SaveSystem.save_path)
+	# 无存档：重开新旅程（状态重置 + 去首场景）
+	GameState.gold = 999
+	GameState.join_member(PartySetup.mu_ningxue())
+	var scene: String = SaveSystem.defeat_return_scene()
+	_check(scene == SaveSystem.FIRST_SCENE, "无存档战败 → 重开新旅程（首场景）")
+	_check(GameState.gold == 30 and GameState.party.size() == 1, "无存档战败 → 状态重置")
+	# 有存档：读回存档场景与状态，战斗残留清空（不再原地循环再战）
+	GameState.new_game()
+	GameState.gold = 123
+	GameState.flags["smoke_defeat"] = true
+	GameState.battle_return_scene = "res://src/battle/battle.tscn"
+	SaveSystem.save_game()
+	GameState.gold = 777
+	GameState.flags = {}
+	var saved_scene: String = get_tree().current_scene.scene_file_path
+	scene = SaveSystem.defeat_return_scene()
+	_check(scene == saved_scene, "战败读档 → 去向为存档场景")
+	_check(GameState.gold == 123 and GameState.flags.get("smoke_defeat", false), "战败读档 → 状态还原")
+	_check(GameState.battle_return_scene == "" and GameState.pending_enemies.is_empty(),
+			"战败读档 → 战斗残留清空")
+	if FileAccess.file_exists(SaveSystem.save_path):
+		DirAccess.remove_absolute(SaveSystem.save_path)
+	SaveSystem.save_path = real_path
 
 
 ## 对话自动收起：台词进行中面板保持，连续台词不闪烁，序列结束后下一帧隐藏。

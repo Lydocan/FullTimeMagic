@@ -21,11 +21,11 @@ cd FullTimeMagic
 
 ```bash
 godot_console --headless --path . --import                        # 导入资源
-godot_console --headless --path . res://tools/smoke_test.tscn     # M2 冒烟测试 60 项（退出码 0 = 通过）
+godot_console --headless --path . res://tools/smoke_test.tscn     # M2 冒烟测试 65 项（退出码 0 = 通过）
 godot_console --headless --path . res://tools/scene_smoke.tscn    # 地图场景冒烟（退出码 0 = 通过）
 ```
 
-当前可玩内容（M2 垂直切片）：标题界面 → 序章（穿越、双系觉醒、唐月教学战）→ 博城主城（重逢穆宁雪入队、天澜高中宇昂挑衅）→ 北门出城进灰雾林地（暗雷练级、明雷精英「独眼魔狼王」、黑教廷线索收尾）。篝火处休息、修炼、突破、存档（单存档位，标题界面可继续旅程）。
+当前可玩内容（M2 垂直切片）：标题界面 → 序章（穿越、双系觉醒、唐月教学战）→ 博城主城（重逢穆宁雪入队、天澜高中宇昂挑衅）→ 北门出城进灰雾林地（暗雷练级、明雷精英「独眼魔狼王」、黑教廷线索收尾）。篝火处休息、修炼、突破、存档（单存档位，标题界面可继续旅程）。战败自动读回最近存档，无存档则重开新旅程。
 
 ## 目录结构
 
