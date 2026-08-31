@@ -37,6 +37,7 @@ func _ready() -> void:
 	await _test_battle_simulation()
 	_test_character_serialization()
 	_test_save_roundtrip()
+	await _test_dialogue_autoclose()
 	_test_map_integrity()
 	if _failures.is_empty():
 		print("=== 全部通过（%d 项）===" % _total)
@@ -166,6 +167,33 @@ func _test_save_roundtrip() -> void:
 	_check(GameState.party.size() == 2 and GameState.party[1].char_name == "穆宁雪", "读档：队伍含穆宁雪")
 	_check(GameState.return_position == Vector2(123, 456) and GameState.has_return_position, "读档：返回坐标")
 	_check(GameState.pending_enemies.is_empty() and GameState.pending_flag == "", "读档：战斗残留清空")
+
+
+## 对话自动收起：台词进行中面板保持，连续台词不闪烁，序列结束后下一帧隐藏。
+func _test_dialogue_autoclose() -> void:
+	print("[对话收起]")
+	var seq := func() -> void:
+		await Dialogue.say("甲", "第一页台词。")
+		await Dialogue.say("乙", "第二页台词。")
+	seq.call()
+	await _wait_typed()
+	_check(Dialogue.visible, "台词进行中：面板保持显示")
+	Dialogue._advanced.emit()  # 推进第一页 → 剧情接续第二页
+	await get_tree().process_frame
+	_check(Dialogue.visible, "连续台词：面板不中途收起")
+	await _wait_typed()
+	Dialogue._advanced.emit()  # 推进最后一页 → 序列结束
+	await get_tree().process_frame
+	_check(not Dialogue.visible, "序列结束：面板自动收起")
+
+
+## 等当前打字机逐字完成（say 满字后停在 await _advanced）。
+func _wait_typed() -> void:
+	for i in 30:
+		if not Dialogue._typing:
+			break
+		await get_tree().process_frame
+	await get_tree().process_frame
 
 
 ## 地图完整性：行列结构、出生点/触发点/传送门两端/精英格均可通行。

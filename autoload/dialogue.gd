@@ -5,6 +5,7 @@ extends CanvasLayer
 ##   await Dialogue.say("莫凡", "台词……", Color.WHITE)
 ##   var i: int = await Dialogue.choose("如何回应？", ["选项甲", "选项乙"])
 ## 键盘：回车/E 推进或快进打字机；选项用方向键导航 + 回车。
+## 台词序列结束（推进后无新台词/选项接续）时面板自动收起，剧情侧无需手动隐藏。
 
 signal _advanced
 signal _chose(index: int)
@@ -14,6 +15,7 @@ var _speaker: Label
 var _text: Label
 var _options_box: HBoxContainer
 var _typing := false
+var _seq := 0  # 台词序号：新台词/选项接续时递增，用于判定序列结束并自动收起
 
 
 func _ready() -> void:
@@ -56,6 +58,7 @@ func _build() -> void:
 
 ## 显示一页对话并等待玩家推进。
 func say(speaker_name: String, text: String, color := Color.WHITE) -> void:
+	_seq += 1
 	visible = true
 	_options_box.visible = false
 	_speaker.text = speaker_name
@@ -70,10 +73,18 @@ func say(speaker_name: String, text: String, color := Color.WHITE) -> void:
 	_typing = false
 	_text.visible_characters = text.length()
 	await _advanced
+	# 序列自动收起：本页推进后，若下一帧没有新台词接续（剧情说完），
+	# 就隐藏面板——否则对话框会跨场景残留，一路挂到战斗画面上。
+	# 连续台词的隐藏与再显示发生在同一帧内，肉眼不可见。
+	var seq := _seq
+	await get_tree().process_frame
+	if _seq == seq:
+		visible = false
 
 
 ## 显示选项，返回被选中的下标。
 func choose(prompt: String, options: Array) -> int:
+	_seq += 1  # 与 say 相同：使前一页挂起的自动收起检查失效
 	visible = true
 	_speaker.text = ""
 	_text.text = prompt

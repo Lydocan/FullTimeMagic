@@ -21,7 +21,7 @@ cd FullTimeMagic
 
 ```bash
 godot_console --headless --path . --import                        # 导入资源
-godot_console --headless --path . res://tools/smoke_test.tscn     # M2 冒烟测试 57 项（退出码 0 = 通过）
+godot_console --headless --path . res://tools/smoke_test.tscn     # M2 冒烟测试 60 项（退出码 0 = 通过）
 godot_console --headless --path . res://tools/scene_smoke.tscn    # 地图场景冒烟（退出码 0 = 通过）
 ```
 
@@ -48,7 +48,7 @@ FullTimeMagic/
 ├── resources/           # 自定义 .tres 数据（spells/ 法术、monsters/ 妖魔）
 ├── tools/               # 开发工具脚本与无头冒烟测试
 ├── shaders/  themes/  addons/
-└── docs/                # 设计文档（GDD、世界观、人物、玩法）
+└── docs/                # 设计文档（GDD、世界观、人物、玩法、开发教训与设计心得）
 ```
 
 ## 开发规范
