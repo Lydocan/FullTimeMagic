@@ -19,6 +19,8 @@ var can_switch_form: bool = false
 var ranks: Dictionary = {}
 ## 已习得法术。
 var spells: Array[SpellData] = []
+## 已装备：{slot: equip_id}，槽位 "weapon"/"magic"/"armor"。
+var equips: Dictionary = {}
 
 ## 基础属性（不含星子加成）。
 var max_hp: int = 80
@@ -96,16 +98,34 @@ func star_bonus() -> Dictionary:
 	return {"max_hp": lit * 6, "max_mp": lit * 2, "magic": lit}
 
 
+## 装备属性加成（equips 里登记的 EquipData 求和）。
+func equip_bonus() -> Dictionary:
+	var out := {"max_hp": 0, "max_mp": 0, "magic": 0, "defense": 0}
+	for slot in equips:
+		var e := GameData.load_equip(equips[slot])
+		if e == null:
+			continue
+		out["max_hp"] += e.bonus_hp
+		out["max_mp"] += e.bonus_mp
+		out["magic"] += e.bonus_magic
+		out["defense"] += e.bonus_defense
+	return out
+
+
 func eff_max_hp() -> int:
-	return max_hp + star_bonus()["max_hp"]
+	return max_hp + star_bonus()["max_hp"] + equip_bonus()["max_hp"]
 
 
 func eff_max_mp() -> int:
-	return max_mp + star_bonus()["max_mp"]
+	return max_mp + star_bonus()["max_mp"] + equip_bonus()["max_mp"]
 
 
 func eff_magic() -> int:
-	return magic + star_bonus()["magic"]
+	return magic + star_bonus()["magic"] + equip_bonus()["magic"]
+
+
+func eff_defense() -> int:
+	return defense + equip_bonus()["defense"]
 
 
 ## 获得修为（点亮星子）。返回事件列表：
@@ -192,11 +212,15 @@ func to_dict() -> Dictionary:
 	var ranks_out := {}
 	for el in ranks:
 		ranks_out[str(el)] = ranks[el]
+	var equips_out := {}
+	for slot in equips:
+		equips_out[str(slot)] = equips[slot]
 	return {
 		"id": id, "name": char_name, "elements": elements,
 		"main_element": main_element, "form": form,
 		"can_switch_form": can_switch_form, "ranks": ranks_out,
 		"spells": spell_ids,
+		"equips": equips_out,
 		"max_hp": max_hp, "max_mp": max_mp, "magic": magic,
 		"defense": defense, "speed": speed,
 		"hp": hp, "mp": mp,
@@ -225,6 +249,8 @@ static func from_dict(d: Dictionary) -> CharacterState:
 		var s := GameData.load_spell(str(sid))
 		if s != null:
 			c.spells.append(s)
+	for slot in d.get("equips", {}):
+		c.equips[str(slot)] = str(d["equips"][slot])
 	c.max_hp = int(d.get("max_hp", 80))
 	c.max_mp = int(d.get("max_mp", 30))
 	c.magic = int(d.get("magic", 10))

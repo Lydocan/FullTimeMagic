@@ -40,8 +40,47 @@ func _ready() -> void:
 	ok = fw_ok and ok
 	var retire_ok: bool = await _test_npc_retire()
 	ok = retire_ok and ok
+	var eq_ok: bool = await _test_equip_flow()
+	ok = eq_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
+
+
+## 装备流程回归：背包 → 选装备 → 选成员。曾因菜单重建帧内焦点被抢给
+## queue_free 的幽灵按钮而丢失，成员列表按 E 无响应。
+func _test_equip_flow() -> bool:
+	print("[装备流程]")
+	GameState.new_game()
+	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_done",
+			"prologue_tutorial_done", "ch1_mufu_done", "ch1_yuang_done"]:
+		GameState.flags[f] = true
+	GameState.add_equip("leiwen_zhang")
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout
+	city._open_bag()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for btn in (city.get("_bag_box") as VBoxContainer).get_children():
+		if btn is Button and btn.text.contains("雷纹杖"):
+			btn.pressed.emit()
+	await get_tree().process_frame
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var focus_ok: bool = focus != null and not focus.is_queued_for_deletion()
+	if focus_ok and focus.text.contains("莫凡"):
+		focus.pressed.emit()  # 模拟回车/E 确认
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var equipped: bool = GameState.party[0].equips.get("weapon", "") == "leiwen_zhang" \
+			and GameState.equip_bag.is_empty()
+	if focus_ok and equipped:
+		print("  PASS  背包装备流程（重建后焦点有效 + 穿戴成功）")
+	else:
+		printerr("  FAIL  装备流程异常（focus_ok=%s equipped=%s）" % [focus_ok, equipped])
+	city.free()
+	GameState.new_game()
+	await get_tree().process_frame
+	return focus_ok and equipped
 
 
 ## NPC 退场：退场检查挂在 run_event 收尾（共用层），走动触发的事件结束后 NPC 随旗标退场。
@@ -56,22 +95,28 @@ func _test_npc_retire() -> bool:
 	add_child(city)
 	await get_tree().create_timer(1.5).timeout
 	var nodes: Array = city.get("_npc_nodes")
-	if nodes.size() != 1:
-		printerr("  FAIL  预期 1 位 NPC 在场，实际 %d" % nodes.size())
+	var npc: Area2D = null
+	var merchant: Area2D = null
+	for node in nodes:
+		if node.hide_flag == "ch1_mufu_done":
+			npc = node
+		elif node.hide_flag == "":
+			merchant = node  # 常驻商人
+	if npc == null or merchant == null:
+		printerr("  FAIL  预期穆宁雪与商人在场")
 		city.free()
 		GameState.new_game()
 		await get_tree().process_frame
 		return false
-	var npc: Area2D = nodes[0]
 	GameState.flags["ch1_mufu_done"] = true  # 模拟剧情已完成
 	var player: Node2D = city.get("player")
 	player.global_position = city._cell_center(Vector2i(29, 12))
 	city._on_player_moved(1.0)  # 走入剧情圈 → 事件快速返回 → 收尾退场
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var gone: bool = not is_instance_valid(npc) and (city.get("_npc_nodes") as Array).is_empty()
+	var gone: bool = not is_instance_valid(npc) and is_instance_valid(merchant)
 	if gone:
-		print("  PASS  事件收尾后 NPC 退场（走动触发路径）")
+		print("  PASS  事件收尾后 NPC 退场（走动触发路径，常驻商人不受影响）")
 	else:
 		printerr("  FAIL  NPC 未随事件收尾退场")
 	city.free()

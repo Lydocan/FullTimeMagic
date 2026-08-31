@@ -40,6 +40,7 @@ func _ready() -> void:
 	_test_defeat_recovery()
 	_test_npc_and_objective()
 	_test_input_map()
+	_test_economy()
 	await _test_audio()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
@@ -249,6 +250,61 @@ func _test_audio() -> void:
 	Audio.play_bgm("")
 
 
+## 经济闭环：道具/装备数据、背包存档往返、装备加成、商店扣款、道具使用。
+func _test_economy() -> void:
+	print("[经济闭环]")
+	# 数据注册表完整
+	var missing := []
+	for key in GameData.ITEMS:
+		if ResourceLoader.exists(GameData.ITEMS[key]) == false:
+			missing.append(key)
+	for key in GameData.EQUIPS:
+		if ResourceLoader.exists(GameData.EQUIPS[key]) == false:
+			missing.append(key)
+	_check(GameData.ITEMS.size() >= 3 and GameData.EQUIPS.size() >= 3 and missing.is_empty(),
+			"道具/装备注册表齐全 %s" % [missing])
+	# 商店扣款
+	GameState.new_game()
+	GameState.gold = 100
+	_check(GameState.try_spend(30) and GameState.gold == 70, "商店扣款成功")
+	_check(not GameState.try_spend(999) and GameState.gold == 70, "余额不足拒绝扣款")
+	GameState.add_item("yuelu")
+	GameState.add_equip("leiwen_zhang", 2)
+	_check(GameState.item_count("yuelu") == 1, "道具入包计数")
+	# 背包 + 装备 存档往返
+	GameState.gold = 55
+	var m := GameState.party[0]
+	m.equips["weapon"] = "leiwen_zhang"
+	var save = JSON.parse_string(JSON.stringify(SaveSystem.make_save_data()))
+	GameState.new_game()
+	GameState.items = {"mojingjie": 5}
+	GameState.equip_bag = {"yuebai_pao": 1}
+	SaveSystem.apply_save_data(save)
+	_check(GameState.gold == 55 and GameState.item_count("yuelu") == 1 and GameState.items.size() == 1,
+			"读档：金币与道具")
+	_check(GameState.equip_bag.get("leiwen_zhang", 0) == 2, "读档：装备背包")
+	var m2 := GameState.party[0]
+	_check(m2.equips.get("weapon", "") == "leiwen_zhang", "读档：装备槽")
+	# 装备加成
+	var bare := PartySetup.mo_fan()
+	var armed := PartySetup.mo_fan()
+	armed.equips["weapon"] = "leiwen_zhang"
+	armed.equips["armor"] = "yuebai_pao"
+	_check(armed.eff_magic() == bare.eff_magic() + 4, "法杖加成：法攻+4")
+	_check(armed.eff_max_hp() == bare.eff_max_hp() + 30, "护袍加成：生命+30")
+	_check(armed.eff_defense() == bare.eff_defense() + 2, "护袍加成：防御+2")
+	# 道具使用
+	var wounded := PartySetup.mo_fan()
+	wounded.change_hp(-30)
+	var yuelu: ItemData = GameData.load_item("yuelu")
+	wounded.change_hp(yuelu.amount)
+	_check(wounded.hp == wounded.eff_max_hp() - 30 + 40 or wounded.hp == wounded.eff_max_hp(),
+			"月露回复生效")
+	var feather: ItemData = GameData.load_item("fuhuo_yumao")
+	_check(feather.battle_only, "复活羽毛仅战斗可用")
+	GameState.new_game()
+
+
 ## 对话自动收起：台词进行中面板保持，连续台词不闪烁，序列结束后下一帧隐藏。
 func _test_dialogue_autoclose() -> void:
 	print("[对话收起]")
@@ -290,7 +346,7 @@ func _test_npc_and_objective() -> void:
 			if BLOCKED.contains(m._cell_char(n["cell"])):
 				npc_ok = false
 				printerr("    NPC 站在阻挡格：%s %s %s" % [scene_path.get_file(), n["name"], n["cell"]])
-			if not (n["hide_flag"] in known_flags):
+			if n["hide_flag"] != "" and not (n["hide_flag"] in known_flags):
 				npc_ok = false
 			if not ResourceLoader.exists(n["texture"]):
 				npc_ok = false

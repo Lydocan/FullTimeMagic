@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://src/data/item_data.gd" id="1_i"]
+
+[resource]
+script = ExtResource("1_i")
+id = "fuhuo_yumao"
+item_name = "复活羽毛"
+price = 50
+kind = "revive"
+amount = 50
+battle_only = true
+description = "妖禽灵羽，仅战斗中可将倒下的同伴扶起。"

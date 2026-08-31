@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://src/data/item_data.gd" id="1_i"]
+
+[resource]
+script = ExtResource("1_i")
+id = "mojingjie"
+item_name = "魔力结晶"
+price = 18
+kind = "heal_mp"
+amount = 20
+battle_only = false
+description = "压缩的魔素结晶，回复精神力。"

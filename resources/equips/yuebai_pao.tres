@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EquipData" format=3]
+
+[ext_resource type="Script" path="res://src/data/equip_data.gd" id="1_e"]
+
+[resource]
+script = ExtResource("1_e")
+slot = "armor"
+id = "yuebai_pao"
+equip_name = "月白袍"
+price = 70
+bonus_hp = 30
+bonus_mp = 0
+bonus_magic = 0
+bonus_defense = 2
+description = "月色法袍，护持肉身。"

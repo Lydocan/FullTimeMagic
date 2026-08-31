@@ -72,3 +72,13 @@ func setup_triggers() -> void:
 	add_npc(Vector2i(13, 6), "res://assets/images/char_yuang.png",
 			"宇昂", "ch1_yuang_done",
 			func() -> void: await Story.yu_ang_taunt(self))
+	# 杂货铺：消耗品与装备（经济闭环）
+	add_merchant(Vector2i(9, 18), "res://assets/images/char_merchant.png",
+			"杂货商·老周", [
+				{"kind": "item", "id": "yuelu"},
+				{"kind": "item", "id": "mojingjie"},
+				{"kind": "item", "id": "fuhuo_yumao"},
+				{"kind": "equip", "id": "leiwen_zhang"},
+				{"kind": "equip", "id": "yuebai_pao"},
+				{"kind": "equip", "id": "lansui_zhui"},
+			])

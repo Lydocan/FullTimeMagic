@@ -140,6 +140,22 @@ func _characters() -> void:
 	_rect(yu, 13, 29, 3, 2, Color("2c2c34"))
 	_save(yu, "char_yuang.png")
 
+	var zhou := _img(24, 32)
+	_rect(zhou, 7, 2, 10, 5, Color("4a3524"))  # 短发
+	_rect(zhou, 8, 7, 8, 5, Color("e8c39a"))   # 脸
+	_rect(zhou, 9, 8, 2, 1, Color("303038"))   # 眼
+	_rect(zhou, 13, 8, 2, 1, Color("303038"))
+	_rect(zhou, 8, 10, 8, 2, Color("6b5138"))  # 胡子
+	_rect(zhou, 6, 12, 12, 11, Color("7a5c38")) # 褐布衫
+	_rect(zhou, 10, 13, 4, 9, Color("c8b088")) # 围裙
+	_rect(zhou, 4, 13, 2, 7, Color("6b5030"))  # 臂
+	_rect(zhou, 18, 13, 2, 7, Color("6b5030"))
+	_rect(zhou, 8, 23, 3, 6, Color("4a4a44"))  # 腿
+	_rect(zhou, 13, 23, 3, 6, Color("4a4a44"))
+	_rect(zhou, 8, 29, 3, 2, Color("2c2c28"))  # 鞋
+	_rect(zhou, 13, 29, 3, 2, Color("2c2c28"))
+	_save(zhou, "char_merchant.png")
+
 
 ## 妖魔占位。
 func _monsters() -> void:

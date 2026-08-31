@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EquipData" format=3]
+
+[ext_resource type="Script" path="res://src/data/equip_data.gd" id="1_e"]
+
+[resource]
+script = ExtResource("1_e")
+slot = "magic"
+id = "lansui_zhui"
+equip_name = "蓝髓坠"
+price = 55
+bonus_hp = 0
+bonus_mp = 12
+bonus_magic = 0
+bonus_defense = 0
+description = "妖魔蓝髓打磨的坠子，蕴养精神力。"

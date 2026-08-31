@@ -115,6 +115,11 @@ func add_npc(cell: Vector2i, texture: String, display_name: String, hide_flag: S
 	_npcs.append({"cell": cell, "texture": texture, "name": display_name, "hide_flag": hide_flag, "event": event})
 
 
+## 注册商人 NPC：按 E 打开商店（常驻，不随旗标退场）。
+func add_merchant(cell: Vector2i, texture: String, display_name: String, wares: Array) -> void:
+	_npcs.append({"cell": cell, "texture": texture, "name": display_name, "hide_flag": "", "wares": wares})
+
+
 func add_portal(cell: Vector2i, target_scene: String, spawn_cell: Vector2i) -> void:
 	_portals.append({"cell": cell, "target": target_scene, "spawn": spawn_cell})
 
@@ -283,12 +288,16 @@ func _sync_followers() -> void:
 
 
 ## 剧情 NPC 实体：退场统一由 _retire_npcs 在事件收尾处理。
+## 带 wares 的为商人：按 E 直接打开商店（不走 run_event，商店自管输入锁）。
 func _spawn_npc(n: Dictionary) -> void:
 	var npc: Area2D = NPC_SCRIPT.new()
 	npc.position = _cell_center(n["cell"])
 	npc.display_name = n["name"]
 	npc.hide_flag = n["hide_flag"]
-	npc.event = func() -> void: run_event(n["event"])
+	if n.has("wares"):
+		npc.event = func() -> void: _open_shop(n["wares"])
+	else:
+		npc.event = func() -> void: run_event(n["event"])
 	add_child(npc)
 	_npc_nodes.append(npc)
 
@@ -396,7 +405,7 @@ func _build_hud() -> void:
 	_hud.add_child(panel)
 
 	var hint := Label.new()
-	hint.text = "WASD/方向键 移动 · E 交互 · Esc 关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
+	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	hint.position = Vector2(12, get_viewport_rect().size.y - 34)
@@ -458,29 +467,57 @@ func _objective_text() -> String:
 	return "第一章·前半 完——地圣泉修行与博城之变将在后续版本推进"
 
 
+## —— 菜单骨架（篝火/商店/背包共用） ——
+
+## 构建居中菜单面板，返回可动态重建的内容容器（标题常驻，Esc 由 _unhandled_input 统一关闭）。
+func _menu_base(title_text: String, width := 360.0) -> VBoxContainer:
+	_menu = CenterContainer.new()
+	_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	var panel_box := VBoxContainer.new()
+	panel_box.add_theme_constant_override("separation", 6)
+	panel.add_child(panel_box)
+	_menu.add_child(panel)
+	var title := Label.new()
+	title.text = title_text
+	title.add_theme_font_size_override("font_size", 20)
+	panel_box.add_child(title)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 4)
+	body.custom_minimum_size = Vector2(width, 0)
+	panel_box.add_child(body)
+	_hud.add_child(_menu)
+	return body
+
+
+## 菜单的结果提示行（每次重建时新建）。
+func _menu_message(body: VBoxContainer) -> Label:
+	_menu_result = Label.new()
+	_menu_result.add_theme_color_override("font_color", Color("ffd166"))
+	body.add_child(_menu_result)
+	return _menu_result
+
+
+## 聚焦菜单里第一个可用按钮（方向键导航、回车/E 确认、Esc 离开）。
+## 跳过排队删除的幽灵节点：菜单重建用 queue_free 延迟移除，本帧内
+## 旧按钮仍在树上，抢到它们的焦点会在下帧随节点销毁而丢失。
+func _focus_menu() -> void:
+	for node in _menu.find_children("*", "Button", true, false):
+		var b := node as Button
+		if b != null and not b.is_queued_for_deletion() and not b.disabled:
+			b.grab_focus()
+			return
+
+
 ## —— 篝火菜单：休息 / 修炼 / 突破 / 存档 ——
 
 func _open_rest_menu() -> void:
 	if _menu != null or _event_running:
 		return
 	player.input_enabled = false
-	_menu = CenterContainer.new()
-	_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var panel := PanelContainer.new()
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	box.custom_minimum_size = Vector2(360, 0)
-	panel.add_child(box)
-	_menu.add_child(panel)
+	var box := _menu_base("营地篝火")
 
-	var title := Label.new()
-	title.text = "营地篝火"
-	title.add_theme_font_size_override("font_size", 20)
-	box.add_child(title)
-
-	_menu_result = Label.new()
-	_menu_result.add_theme_color_override("font_color", Color("ffd166"))
-	box.add_child(_menu_result)
+	_menu_message(box)
 
 	var rest_btn := Button.new()
 	rest_btn.text = "休息（恢复全体 HP/MP）"
@@ -542,14 +579,8 @@ func _open_rest_menu() -> void:
 	close_btn.pressed.connect(_close_rest_menu)
 	box.add_child(close_btn)
 
-	_hud.add_child(_menu)
 	_refresh_menu()
-	# 键盘操作：聚焦第一个可用按钮（方向键导航、回车确认、Esc 离开）
-	for node in _menu.find_children("*", "Button", true, false):
-		var b := node as Button
-		if b != null and not b.disabled:
-			b.grab_focus()
-			break
+	_focus_menu()
 
 
 func _apply_cultivate(m: CharacterState, el: int, amount: int) -> void:
@@ -578,6 +609,214 @@ func _refresh_menu() -> void:
 			btn.disabled = GameState.party[0].is_bottleneck(el)
 
 
+## —— 商店：买断制货架，金币结算 ——
+
+var _wares: Array = []
+var _shop_box: VBoxContainer
+
+
+## 货架由地图注册（见 add_merchant），条目 {"kind": "item"/"equip", "id": 数据id}。
+func _open_shop(wares: Array) -> void:
+	if _menu != null or _event_running:
+		return
+	player.input_enabled = false
+	_wares = wares
+	_shop_box = _menu_base("杂货铺", 500)
+	_refresh_shop()
+
+
+func _refresh_shop() -> void:
+	for child in _shop_box.get_children():
+		child.queue_free()
+	var gold_label := Label.new()
+	gold_label.text = "金币 %d" % GameState.gold
+	gold_label.add_theme_font_size_override("font_size", 14)
+	gold_label.add_theme_color_override("font_color", Color("ffd166"))
+	_shop_box.add_child(gold_label)
+	var message := _menu_message(_shop_box)
+	var first := true
+	for w in _wares:
+		var btn := Button.new()
+		btn.add_theme_font_size_override("font_size", 13)
+		if w["kind"] == "item":
+			var item: ItemData = GameData.load_item(w["id"])
+			btn.text = "%s · %s —— %d 金币（持有 %d）" % [
+				item.item_name, item.effect_text(), item.price, GameState.items.get(w["id"], 0)]
+			btn.pressed.connect(_buy_ware.bind(w))
+		else:
+			var eq: EquipData = GameData.load_equip(w["id"])
+			btn.text = "%s（%s）· %s —— %d 金币" % [
+				eq.equip_name, eq.slot_name(), eq.bonus_text(), eq.price]
+			btn.pressed.connect(_buy_ware.bind(w))
+		_shop_box.add_child(btn)
+		if first:
+			btn.grab_focus()
+			first = false
+	var close_btn := Button.new()
+	close_btn.text = "离开"
+	close_btn.pressed.connect(_close_rest_menu)
+	_shop_box.add_child(close_btn)
+
+
+func _buy_ware(w: Dictionary) -> void:
+	var data_name := ""
+	var price := 0
+	if w["kind"] == "item":
+		var item: ItemData = GameData.load_item(w["id"])
+		data_name = item.item_name
+		price = item.price
+	else:
+		var eq: EquipData = GameData.load_equip(w["id"])
+		data_name = eq.equip_name
+		price = eq.price
+	if not GameState.try_spend(price):
+		_menu_result.text = "金币不够……"
+		return
+	if w["kind"] == "item":
+		GameState.add_item(w["id"])
+	else:
+		GameState.add_equip(w["id"])
+	Audio.play_sfx("coin")
+	_menu_result.text = "买下了 %s。" % data_name
+	GameEvents.party_status_changed.emit()  # 刷新 HUD 金币
+	_refresh_shop()
+
+
+## —— 背包：使用消耗品 / 穿戴装备 ——
+
+var _bag_box: VBoxContainer
+var _pending_bag_item := ""
+
+
+func _open_bag() -> void:
+	if _menu != null or _event_running:
+		return
+	player.input_enabled = false
+	_bag_box = _menu_base("背包", 420)
+	_refresh_bag()
+
+
+func _refresh_bag() -> void:
+	for child in _bag_box.get_children():
+		child.queue_free()
+	var message := _menu_message(_bag_box)
+	var head := Label.new()
+	head.text = "—— 消耗品 ——"
+	head.add_theme_font_size_override("font_size", 13)
+	_bag_box.add_child(head)
+	if GameState.items.is_empty():
+		var empty := Label.new()
+		empty.text = "（空空如也）"
+		empty.add_theme_font_size_override("font_size", 12)
+		_bag_box.add_child(empty)
+	for item_id in GameState.items:
+		var item: ItemData = GameData.load_item(item_id)
+		var btn := Button.new()
+		btn.text = "%s ×%d · %s" % [item.item_name, GameState.items[item_id], item.effect_text()]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_pick_field_target.bind(item_id))
+		_bag_box.add_child(btn)
+	var equip_head := Label.new()
+	equip_head.text = "—— 装备（选择后为领队穿戴） ——"
+	equip_head.add_theme_font_size_override("font_size", 13)
+	_bag_box.add_child(equip_head)
+	for equip_id in GameState.equip_bag:
+		var eq: EquipData = GameData.load_equip(equip_id)
+		var btn := Button.new()
+		btn.text = "%s（%s）· %s" % [eq.equip_name, eq.slot_name(), eq.bonus_text()]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_pick_equip_target.bind(equip_id))
+		_bag_box.add_child(btn)
+	var close_btn := Button.new()
+	close_btn.text = "关闭（Esc）"
+	close_btn.pressed.connect(_close_rest_menu)
+	_bag_box.add_child(close_btn)
+	_focus_menu()
+
+
+func _pick_field_target(item_id: String) -> void:
+	var item: ItemData = GameData.load_item(item_id)
+	_pending_bag_item = item_id
+	for child in _bag_box.get_children():
+		child.queue_free()
+	var message := _menu_message(_bag_box)
+	var hint := Label.new()
+	hint.text = "对谁使用 %s？" % item.item_name
+	hint.add_theme_font_size_override("font_size", 14)
+	_bag_box.add_child(hint)
+	for m in GameState.party:
+		var btn := Button.new()
+		btn.text = "%s  HP %d/%d  MP %d/%d" % [m.char_name, m.hp, m.eff_max_hp(), m.mp, m.eff_max_mp()]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.disabled = not _field_item_ok(item, m)
+		btn.pressed.connect(_use_field_item.bind(m))
+		_bag_box.add_child(btn)
+	var back := Button.new()
+	back.text = "返回"
+	back.pressed.connect(_refresh_bag)
+	_bag_box.add_child(back)
+	_focus_menu()
+
+
+func _field_item_ok(item: ItemData, m: CharacterState) -> bool:
+	if item.battle_only:
+		return false
+	match item.kind:
+		"heal_hp": return m.hp > 0 and m.hp < m.eff_max_hp()
+		"heal_mp": return m.hp > 0 and m.mp < m.eff_max_mp()
+	return false
+
+
+func _use_field_item(m: CharacterState) -> void:
+	var item: ItemData = GameData.load_item(_pending_bag_item)
+	if item == null or not GameState.take_item(_pending_bag_item):
+		return
+	match item.kind:
+		"heal_hp": m.change_hp(item.amount)
+		"heal_mp": m.change_mp(item.amount)
+	Audio.play_sfx("rest")
+	GameEvents.party_status_changed.emit()
+	_refresh_bag()
+
+
+func _pick_equip_target(equip_id: String) -> void:
+	var eq: EquipData = GameData.load_equip(equip_id)
+	for child in _bag_box.get_children():
+		child.queue_free()
+	var message := _menu_message(_bag_box)
+	var hint := Label.new()
+	hint.text = "谁装备 %s（%s）？" % [eq.equip_name, eq.slot_name()]
+	hint.add_theme_font_size_override("font_size", 14)
+	_bag_box.add_child(hint)
+	for m in GameState.party:
+		var btn := Button.new()
+		var old: String = m.equips.get(eq.slot, "")
+		var old_name: String = GameData.load_equip(old).equip_name if old != "" else "无"
+		btn.text = "%s（当前：%s）" % [m.char_name, old_name]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_do_equip.bind(m, equip_id))
+		_bag_box.add_child(btn)
+	var back := Button.new()
+	back.text = "返回"
+	back.pressed.connect(_refresh_bag)
+	_bag_box.add_child(back)
+	_focus_menu()
+
+
+func _do_equip(m: CharacterState, equip_id: String) -> void:
+	var eq: EquipData = GameData.load_equip(equip_id)
+	if eq == null or not GameState.take_equip(equip_id):
+		return
+	if m.equips.has(eq.slot):
+		GameState.add_equip(m.equips[eq.slot])  # 换下的回背包
+	m.equips[eq.slot] = equip_id
+	m.hp = mini(m.hp, m.eff_max_hp())
+	m.mp = mini(m.mp, m.eff_max_mp())
+	Audio.play_sfx("ui_confirm")
+	GameEvents.party_status_changed.emit()
+	_refresh_bag()
+
+
 func _close_rest_menu() -> void:
 	if _menu != null:
 		_menu.queue_free()
@@ -590,3 +829,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _menu != null and event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		_close_rest_menu()
+	elif _menu == null and not _event_running and event.is_action_pressed("inventory"):
+		get_viewport().set_input_as_handled()
+		_open_bag()

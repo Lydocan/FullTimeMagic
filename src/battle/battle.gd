@@ -4,7 +4,7 @@ extends Node2D
 ## 设计见 docs/gameplay.md。逻辑函数与 UI 分离：
 ## tools/smoke_test.tscn 通过 run_simulation() 直接驱动战斗逻辑做无头验证。
 
-enum Phase { INTRO, COMMAND, SPELL_SELECT, TARGET, RESOLVING, ENEMY, VICTORY, DEFEAT }
+enum Phase { INTRO, COMMAND, SPELL_SELECT, ITEM_SELECT, TARGET, RESOLVING, ENEMY, VICTORY, DEFEAT }
 
 const WORLD_SCENE := "res://src/world/test_wilds/test_wilds.tscn"
 const BG_TEXTURE := "res://assets/images/battle_bg_proto.png"
@@ -159,6 +159,7 @@ func _build_ui() -> void:
 	cbox.add_theme_constant_override("separation", 4)
 	cmd_panel.add_child(cbox)
 	_add_cmd_button(cbox, "法术", _open_spell_list)
+	_add_cmd_button(cbox, "道具", _open_battle_items)
 	_add_cmd_button(cbox, "切换形态", _on_switch_form)
 	_add_cmd_button(cbox, "防御（+1 星辉）", _on_defend)
 	_add_cmd_button(cbox, "逃跑", _on_flee)
@@ -397,6 +398,106 @@ func _open_spell_list() -> void:
 	_focus_spell(_last_spell_index)
 
 
+## —— 道具（战斗）——
+
+var _pending_item := ""
+
+
+## 道具 → 选目标成员 → 生效，消耗一次行动。
+func _open_battle_items() -> void:
+	_phase = Phase.ITEM_SELECT
+	_set_cmd_buttons_enabled(false)
+	for child in _spell_box.get_children():
+		child.queue_free()
+	_spell_buttons.clear()
+	var first := true
+	for item_id in GameState.items:
+		var item: ItemData = GameData.load_item(item_id)
+		if item == null:
+			continue
+		var btn := Button.new()
+		btn.text = "%s ×%d（%s）" % [item.item_name, GameState.items[item_id], item.effect_text()]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_choose_battle_item.bind(item_id))
+		_spell_box.add_child(btn)
+		_spell_buttons.append(btn)
+		if first:
+			btn.grab_focus()
+			first = false
+	var back := Button.new()
+	back.text = "返回"
+	back.add_theme_font_size_override("font_size", 13)
+	back.pressed.connect(_back_to_command)
+	_spell_box.add_child(back)
+	_spell_buttons.append(back)
+	if not first:
+		return
+	back.grab_focus()
+
+
+func _item_targets_ok(item: ItemData, m: CharacterState) -> bool:
+	match item.kind:
+		"heal_hp": return m.hp > 0 and m.hp < m.eff_max_hp()
+		"heal_mp": return m.hp > 0 and m.mp < m.eff_max_mp()
+		"revive": return m.hp <= 0
+		_:
+			return false
+
+
+func _choose_battle_item(item_id: String) -> void:
+	var item: ItemData = GameData.load_item(item_id)
+	if item == null or GameState.items.get(item_id, 0) <= 0:
+		return
+	_pending_item = item_id
+	for child in _spell_box.get_children():
+		child.queue_free()
+	_spell_buttons.clear()
+	var hint := Label.new()
+	hint.text = "对谁使用？"
+	hint.add_theme_font_size_override("font_size", 13)
+	_spell_box.add_child(hint)
+	var first := true
+	for m in _party:
+		var ok := _item_targets_ok(item, m)
+		var btn := Button.new()
+		btn.text = "%s  HP %d/%d  MP %d/%d" % [m.char_name, m.hp, m.eff_max_hp(), m.mp, m.eff_max_mp()]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.disabled = not ok
+		btn.pressed.connect(_use_battle_item.bind(m))
+		_spell_box.add_child(btn)
+		_spell_buttons.append(btn)
+		if ok and first:
+			btn.grab_focus()
+			first = false
+	var back := Button.new()
+	back.text = "返回"
+	back.add_theme_font_size_override("font_size", 13)
+	back.pressed.connect(_open_battle_items)
+	_spell_box.add_child(back)
+	_spell_buttons.append(back)
+	if first:
+		back.grab_focus()
+
+
+func _use_battle_item(m: CharacterState) -> void:
+	var item: ItemData = GameData.load_item(_pending_item)
+	if item == null or not GameState.take_item(_pending_item):
+		return
+	match item.kind:
+		"heal_hp":
+			m.change_hp(item.amount)
+		"heal_mp":
+			m.change_mp(item.amount)
+		"revive":
+			m.change_hp(m.eff_max_hp() * item.amount / 100)
+			m.reset_battle_state()
+	Audio.play_sfx("rest")
+	_log("%s 使用了 %s（%s）。" % [_member.char_name, item.item_name, m.char_name])
+	_sync_all()
+	_hide_command()
+	_advance()
+
+
 ## 键盘焦点落在第一个可用（精神力足够）的法术上；找不到就退回指令菜单。
 func _focus_spell(index: int) -> void:
 	for i in range(clampi(index, 0, _spell_buttons.size() - 1), _spell_buttons.size()):
@@ -497,6 +598,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _phase == Phase.SPELL_SELECT and event.is_action_pressed("ui_cancel"):
 			_back_to_command()
 			get_viewport().set_input_as_handled()
+	elif _phase == Phase.ITEM_SELECT and event.is_action_pressed("ui_cancel"):
+		_back_to_command()
+		get_viewport().set_input_as_handled()
 	if _phase == Phase.COMMAND and event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:

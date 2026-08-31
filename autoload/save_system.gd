@@ -20,6 +20,8 @@ func make_save_data() -> Dictionary:
 		"scene": "",
 		"gold": GameState.gold,
 		"essences": GameState.essences,
+		"items": GameState.items,
+		"equip_bag": GameState.equip_bag,
 		"flags": GameState.flags,
 		"party": [],
 		"return_position": [GameState.return_position.x, GameState.return_position.y],
@@ -45,6 +47,12 @@ func apply_save_data(d: Dictionary) -> bool:
 	GameState.essences = {}
 	for key in d.get("essences", {}):
 		GameState.essences[str(key)] = int(d["essences"][key])
+	GameState.items = {}
+	for key in d.get("items", {}):
+		GameState.items[str(key)] = int(d["items"][key])
+	GameState.equip_bag = {}
+	for key in d.get("equip_bag", {}):
+		GameState.equip_bag[str(key)] = int(d["equip_bag"][key])
 	GameState.flags = {}
 	for key in d.get("flags", {}):
 		GameState.flags[str(key)] = bool(d["flags"][key])

@@ -10,6 +10,10 @@ var party: Array[CharacterState] = []
 var gold: int = 30
 ## 精魄持有：{essence_id: count}
 var essences: Dictionary = {}
+## 消耗品背包：{item_id: count}
+var items: Dictionary = {}
+## 未装备的装备：{equip_id: count}
+var equip_bag: Dictionary = {}
 ## 剧情旗标：{flag: true}
 var flags: Dictionary = {}
 ## 遇敌与场景往返（原型期全局暂存，正式版走场景传参）。
@@ -35,6 +39,8 @@ func new_game() -> void:
 	party.append(PartySetup.mo_fan())
 	gold = 30
 	essences = {}
+	items = {}
+	equip_bag = {}
 	flags = {}
 	pending_enemies = []
 	pending_flag = ""
@@ -66,6 +72,48 @@ func add_gold(delta: int) -> int:
 	gold = maxi(gold + delta, 0)
 	GameEvents.gold_changed.emit(gold)
 	return gold
+
+
+## —— 背包与商店 ——
+
+func add_item(item_id: String, count: int = 1) -> int:
+	items[item_id] = items.get(item_id, 0) + count
+	return items[item_id]
+
+
+func item_count(item_id: String) -> int:
+	return items.get(item_id, 0)
+
+
+func take_item(item_id: String, count: int = 1) -> bool:
+	if items.get(item_id, 0) < count:
+		return false
+	items[item_id] -= count
+	if items[item_id] <= 0:
+		items.erase(item_id)
+	return true
+
+
+func add_equip(equip_id: String, count: int = 1) -> int:
+	equip_bag[equip_id] = equip_bag.get(equip_id, 0) + count
+	return equip_bag[equip_id]
+
+
+func take_equip(equip_id: String, count: int = 1) -> bool:
+	if equip_bag.get(equip_id, 0) < count:
+		return false
+	equip_bag[equip_id] -= count
+	if equip_bag[equip_id] <= 0:
+		equip_bag.erase(equip_id)
+	return true
+
+
+## 商店购买：余额充足则扣款。入包由调用方处理。
+func try_spend(amount: int) -> bool:
+	if gold < amount:
+		return false
+	add_gold(-amount)
+	return true
 
 
 func essence_count(id: String) -> int:

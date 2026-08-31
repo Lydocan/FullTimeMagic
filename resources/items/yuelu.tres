@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://src/data/item_data.gd" id="1_i"]
+
+[resource]
+script = ExtResource("1_i")
+id = "yuelu"
+item_name = "月露"
+price = 15
+kind = "heal_hp"
+amount = 40
+battle_only = false
+description = "月华凝成的露水，饮之回复生命。"
