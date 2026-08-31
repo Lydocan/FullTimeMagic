@@ -49,6 +49,7 @@ func _ready() -> void:
 	_spawn_party_actors()
 	_build_ui()
 	_log("遭遇妖魔：%s" % "、".join(_enemy_names()))
+	Audio.play_bgm("battle")
 	_start_round()
 
 
@@ -555,11 +556,14 @@ func _hit_enemy(user: CharacterState, e: Dictionary, s: SpellData) -> void:
 			e["actor"].set_weaknesses(data.weaknesses, e["discovered"])
 		if e["shield"] > 0:
 			e["shield"] = maxi(e["shield"] - s.break_power, 0)
+			Audio.play_sfx("weak_hit")
 			_log("命中弱点！%s 的魔盾被削弱。" % data.monster_name)
 			if e["shield"] <= 0 and not e["broken"]:
 				e["broken"] = true
+				Audio.play_sfx("break")
 				_log("◆ 破魔！%s 眩晕，承伤加深！" % data.monster_name)
 	e["hp"] = maxi(e["hp"] - dmg, 0)
+	Audio.play_sfx("hit")
 	_log("%s 对 %s 造成 %d 伤害%s。" % [user.char_name, data.monster_name, dmg, "（破魔）" if e["broken"] else ""])
 	if e["hp"] <= 0:
 		e["actor"].fade_out()
@@ -627,6 +631,7 @@ func _check_battle_end() -> bool:
 func _win() -> void:
 	_phase = Phase.VICTORY
 	_log("战斗胜利！")
+	Audio.play_sfx("victory")
 	var xp_each := 0
 	var gold := 0
 	var essences: Array = []
@@ -645,6 +650,7 @@ func _win() -> void:
 func _lose() -> void:
 	_phase = Phase.DEFEAT
 	_log("队伍溃败……")
+	Audio.play_sfx("defeat")
 	_show_result(false, 0, 0, [], [])
 
 

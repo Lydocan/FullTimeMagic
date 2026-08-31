@@ -13,6 +13,7 @@
 | 氛围光照 | `CanvasModulate` 全局色调 + `PointLight2D`（路灯、法术光效） |
 | 泛光/辉光 | `WorldEnvironment` glow（克制使用，夜景与法术才开） |
 | 分辨率 | 1920x1080 窗口，像素角色按 3x 整数缩放 |
+| 音频 | 占位 chiptune（`Audio` autoload）：4 首 BGM 随场景切换（标题/城镇/林地/战斗），14 个音效（UI/战斗/系统反馈）；正式音频按同名文件替换 |
 
 ## 探索层
 

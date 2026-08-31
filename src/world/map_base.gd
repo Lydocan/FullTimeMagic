@@ -57,9 +57,15 @@ func _ready() -> void:
 	GameEvents.party_status_changed.connect(_refresh_hud)
 	GameEvents.party_status_changed.connect(_sync_followers)
 	_refresh_hud()
+	Audio.play_bgm(bgm_name())
 
 
 ## —— 子类接口 ——
+
+## 地图 BGM 名（Audio.BGM 的键；"" 为静默）。
+func bgm_name() -> String:
+	return ""
+
 
 func map_rows() -> Array:
 	return []
@@ -355,6 +361,7 @@ func _pick_encounter(table: Array) -> Array:
 func _start_encounter(ids: Array, win_flag: String, from_event := false) -> void:
 	if _encounter_blocked(from_event):
 		return
+	Audio.play_sfx("encounter")
 	_cooling = true
 	player.input_enabled = false
 	GameState.return_position = player.global_position
@@ -479,6 +486,7 @@ func _open_rest_menu() -> void:
 	rest_btn.text = "休息（恢复全体 HP/MP）"
 	rest_btn.pressed.connect(func() -> void:
 		GameState.rest_at_camp()
+		Audio.play_sfx("rest")
 		_menu_result.text = "队伍在篝火旁休整，状态全满。"
 		_refresh_menu()
 	)
@@ -488,6 +496,8 @@ func _open_rest_menu() -> void:
 	save_btn.text = "在此存档"
 	save_btn.pressed.connect(func() -> void:
 		var err := SaveSystem.save_game()
+		if err == OK:
+			Audio.play_sfx("save")
 		_menu_result.text = "旅程已记录。" if err == OK else "保存失败。"
 	)
 	box.add_child(save_btn)
@@ -518,6 +528,7 @@ func _open_rest_menu() -> void:
 			btn.disabled = GameState.essence_count(need) < GameState.ESSENCE_COST
 			btn.pressed.connect(func() -> void:
 				if GameState.try_breakthrough(m, el_i):
+					Audio.play_sfx("breakthrough")
 					_menu_result.text = "%s 的%s系突破成功！晋升%s。" % [
 						m.char_name, GameTypes.element_name(el_i),
 						GameTypes.rank_text(el_i, m.stage_of(el_i), m.star_of(el_i)),
@@ -547,9 +558,11 @@ func _apply_cultivate(m: CharacterState, el: int, amount: int) -> void:
 		match ev["type"]:
 			"star":
 				GameEvents.star_advanced.emit(m.char_name, el, ev["stage"], ev["star"])
+				Audio.play_sfx("star")
 				_menu_result.text = "%s 星子连线！晋升%s。" % [m.char_name, m.rank_label(el)]
 			"bottleneck":
 				GameEvents.bottleneck_reached.emit(m.char_name, el)
+				Audio.play_sfx("star")
 				_menu_result.text = "%s 的%s系三星圆满，进入瓶颈——收集精魄方可突破。" % [m.char_name, GameTypes.element_name(el)]
 	if events.is_empty() or events.size() == 1:
 		_menu_result.text = "静静修炼了一晚。（%s系修为+%d）" % [GameTypes.element_name(el), amount]

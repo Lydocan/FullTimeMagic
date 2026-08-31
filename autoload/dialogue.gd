@@ -116,4 +116,5 @@ func _input(event: InputEvent) -> void:
 			_typing = false
 			_text.visible_characters = -1
 		else:
+			Audio.play_sfx("ui_move")
 			_advanced.emit()

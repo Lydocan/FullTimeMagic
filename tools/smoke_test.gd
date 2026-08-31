@@ -40,6 +40,7 @@ func _ready() -> void:
 	_test_defeat_recovery()
 	_test_npc_and_objective()
 	_test_input_map()
+	await _test_audio()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
 	if _failures.is_empty():
@@ -224,6 +225,28 @@ func _has_key(action: String, keycode: Key) -> bool:
 		if k != null and k.physical_keycode == keycode:
 			return true
 	return false
+
+
+## 音频：清单文件齐全，BGM 切换与同名去重，SFX 播放不异常。
+func _test_audio() -> void:
+	print("[音频]")
+	var missing := []
+	for key in Audio.BGM:
+		if not ResourceLoader.exists(Audio.BGM[key]):
+			missing.append(key)
+	for key in Audio.SFX:
+		if not ResourceLoader.exists(Audio.SFX[key]):
+			missing.append(key)
+	_check(Audio.BGM.size() == 4 and Audio.SFX.size() >= 14 and missing.is_empty(),
+			"音频清单齐全（BGM %d + SFX %d）%s" % [Audio.BGM.size(), Audio.SFX.size(), missing])
+	Audio.play_bgm("town")
+	_check(Audio.current_bgm == "town", "BGM 切换为城镇")
+	Audio.play_bgm("battle")
+	_check(Audio.current_bgm == "battle", "BGM 切换为战斗")
+	Audio.play_sfx("hit")
+	Audio.play_sfx("hit")  # 并发播放走不同通道
+	_check(Audio.current_bgm == "battle", "SFX 不影响 BGM")
+	Audio.play_bgm("")
 
 
 ## 对话自动收起：台词进行中面板保持，连续台词不闪烁，序列结束后下一帧隐藏。

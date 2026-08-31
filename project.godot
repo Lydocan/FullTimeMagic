@@ -22,6 +22,7 @@ GameEvents="*res://autoload/game_events.gd"
 GameState="*res://autoload/game_state.gd"
 SaveSystem="*res://autoload/save_system.gd"
 Dialogue="*res://autoload/dialogue.gd"
+Audio="*res://autoload/audio_manager.gd"
 
 [display]
 

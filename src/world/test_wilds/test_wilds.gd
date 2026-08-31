@@ -38,6 +38,10 @@ func map_rows() -> Array:
 	return MAP
 
 
+func bgm_name() -> String:
+	return "grove"
+
+
 func start_cell() -> Vector2i:
 	return SPAWN_CELL
 

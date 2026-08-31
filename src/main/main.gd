@@ -3,6 +3,7 @@ extends Control
 
 
 func _ready() -> void:
+	Audio.play_bgm("title")
 	var bg := ColorRect.new()
 	bg.color = Color("14101f")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)

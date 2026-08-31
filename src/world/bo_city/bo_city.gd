@@ -45,6 +45,10 @@ func map_rows() -> Array:
 	return MAP
 
 
+func bgm_name() -> String:
+	return "town"
+
+
 func start_cell() -> Vector2i:
 	return SPAWN_CELL
 
