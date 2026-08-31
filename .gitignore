@@ -26,3 +26,4 @@ desktop.ini
 .mono/
 data_*/
 mono_crash.*.json
+.claude/worktrees/
