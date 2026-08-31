@@ -26,6 +26,9 @@ var _target_entry := -1
 # UI 引用
 var _cmd_root: Control
 var _spell_box: VBoxContainer
+var _cmd_buttons: Array[Button] = []
+var _spell_buttons: Array[Button] = []
+var _last_spell_index := 0
 var _info_label: Label
 var _rank_label: Label
 var _hp_bar: ProgressBar
@@ -98,11 +101,18 @@ func _build_ui() -> void:
 	_order_label.add_theme_font_size_override("font_size", 14)
 	layer.add_child(_order_label)
 
+	var keys_hint := Label.new()
+	keys_hint.text = "方向键 选择 · 回车 确认 · Esc 返回 · W/S 调整星辉（鼠标可辅助）"
+	keys_hint.position = Vector2(16, 32)
+	keys_hint.add_theme_font_size_override("font_size", 12)
+	keys_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	layer.add_child(keys_hint)
+
 	_target_hint = Label.new()
 	_target_hint.position = Vector2(540, 40)
 	_target_hint.add_theme_font_size_override("font_size", 15)
 	_target_hint.add_theme_color_override("font_color", Color("ffd166"))
-	_target_hint.text = "选择目标：点击 或 ←→ + 回车"
+	_target_hint.text = "选择目标：←→ 切换 · 回车 确认 · Esc 返回（鼠标点击亦可）"
 	_target_hint.visible = false
 	layer.add_child(_target_hint)
 
@@ -193,6 +203,7 @@ func _add_cmd_button(parent: Node, text: String, action: Callable) -> void:
 	btn.text = text
 	btn.pressed.connect(action)
 	parent.add_child(btn)
+	_cmd_buttons.append(btn)
 
 
 ## —— 回合流转 ——
@@ -307,6 +318,8 @@ func _show_command(m: CharacterState) -> void:
 	_update_member_panel(m)
 	_fill_spell_list(m)
 	_set_cmd_buttons_enabled(true)
+	if _cmd_buttons.size() > 0:
+		_cmd_buttons[0].grab_focus()
 
 
 func _update_member_panel(m: CharacterState) -> void:
@@ -317,15 +330,19 @@ func _update_member_panel(m: CharacterState) -> void:
 	_hp_bar.tooltip_text = "HP %d/%d" % [m.hp, m.eff_max_hp()]
 	_mp_bar.tooltip_text = "MP %d/%d" % [m.mp, m.eff_max_mp()]
 	_stars_label.text = "星辉 " + "◆".repeat(m.battle_stars) + "◇".repeat(MAX_STARS - m.battle_stars)
-	_boost_value.text = "增幅 ×%d（+法术段数）" % _boost
+	_boost_value.text = "增幅 ×%d（W/S 或 ▲▼）" % _boost
 
 
 func _fill_spell_list(m: CharacterState) -> void:
 	for child in _spell_box.get_children():
 		child.queue_free()
+	_spell_buttons.clear()
+	_last_spell_index = 0
 	var el := m.form_element()
+	var index := 0
 	for s in m.usable_spells(el):
 		var spell := s
+		var spell_index := index
 		var btn := Button.new()
 		btn.text = "%s   威力%d ×%d段   MP%d%s" % [
 			spell.spell_name, spell.power, spell.hits, spell.mp_cost,
@@ -333,15 +350,17 @@ func _fill_spell_list(m: CharacterState) -> void:
 		]
 		btn.add_theme_font_size_override("font_size", 13)
 		btn.disabled = m.mp < spell.mp_cost
-		btn.pressed.connect(func() -> void: _on_spell_chosen(spell))
+		btn.pressed.connect(func() -> void:
+			_last_spell_index = spell_index
+			_on_spell_chosen(spell)
+		)
 		_spell_box.add_child(btn)
+		_spell_buttons.append(btn)
+		index += 1
 	var back := Button.new()
 	back.text = "返回"
 	back.add_theme_font_size_override("font_size", 13)
-	back.pressed.connect(func() -> void:
-		_phase = Phase.COMMAND
-		_show_command(_member)
-	)
+	back.pressed.connect(_back_to_command)
 	_spell_box.add_child(back)
 
 
@@ -355,12 +374,30 @@ func _adjust_boost(delta: int) -> void:
 	if _phase != Phase.COMMAND and _phase != Phase.SPELL_SELECT:
 		return
 	_boost = clampi(_boost + delta, 0, mini(_member.battle_stars, MAX_STARS))
-	_boost_value.text = "增幅 ×%d（+法术段数）" % _boost
+	_boost_value.text = "增幅 ×%d（W/S 或 ▲▼）" % _boost
 
 
 func _open_spell_list() -> void:
 	_phase = Phase.SPELL_SELECT
 	_set_cmd_buttons_enabled(false)
+	_focus_spell(_last_spell_index)
+
+
+## 键盘焦点落在第一个可用（精神力足够）的法术上；找不到就退回指令菜单。
+func _focus_spell(index: int) -> void:
+	for i in range(clampi(index, 0, _spell_buttons.size() - 1), _spell_buttons.size()):
+		if not _spell_buttons[i].disabled:
+			_spell_buttons[i].grab_focus()
+			return
+	for btn in _spell_buttons:
+		if not btn.disabled:
+			btn.grab_focus()
+			return
+
+
+func _back_to_command() -> void:
+	_phase = Phase.COMMAND
+	_show_command(_member)
 
 
 func _on_switch_form() -> void:
@@ -436,7 +473,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			_phase = Phase.SPELL_SELECT
 			_target_hint.visible = false
 			_refresh_target_highlight()
-	elif _phase == Phase.COMMAND and event is InputEventMouseButton:
+			_focus_spell(_last_spell_index)
+		return
+	if _phase == Phase.COMMAND or _phase == Phase.SPELL_SELECT:
+		# 纯键盘：W/S 调整星辉增幅（方向键留给焦点导航），Esc 返回指令菜单
+		var used := true
+		if event.is_action_pressed("move_up"):
+			_adjust_boost(1)
+		elif event.is_action_pressed("move_down"):
+			_adjust_boost(-1)
+		elif _phase == Phase.SPELL_SELECT and event.is_action_pressed("ui_cancel"):
+			_back_to_command()
+		else:
+			used = false
+		if used:
+			get_viewport().set_input_as_handled()
+			return
+	if _phase == Phase.COMMAND and event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			for e in _enemies:
@@ -632,13 +685,14 @@ func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, event
 		box.add_child(_result_label("众人被路过的巡逻猎人救回营地。（下次小心）"))
 
 	var btn := Button.new()
-	btn.text = "继续"
+	btn.text = "继续（回车）"
 	btn.pressed.connect(func() -> void:
 		if not victory:
 			GameState.rest_at_camp()
 		_finish(victory, false)
 	)
 	box.add_child(btn)
+	btn.grab_focus()
 
 
 func _result_label(text: String) -> Label:

@@ -89,3 +89,4 @@ FullTimeMagic/
 - 渲染方式当前为 **gl_compatibility**（2D 项目足够，且对低端设备和 Web 导出友好）；如需 Forward+ 高级特效，可在项目设置中改回
 - 如果使用像素美术，建议在「项目设置 → 渲染 → 纹理 → Canvas Textures → Default Texture Filter」中改为 **Nearest**，并把窗口大小调整为整数倍缩放
 - 输入映射已在 `project.godot` 中预定义：`WASD/方向键` 移动、`E` 交互、`空格/J` 攻击、`I/Tab` 背包、`Esc` 暂停
+- **操作以键盘为主**：探索 WASD+E；战斗与菜单全程 方向键导航 + 回车确认 + Esc 返回（战斗中 W/S 调整星辉增幅），鼠标仅作辅助

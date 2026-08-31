@@ -246,7 +246,7 @@ func _build_hud() -> void:
 	_hud.add_child(panel)
 
 	var hint := Label.new()
-	hint.text = "WASD 移动 · E 交互 · 深草区会遭遇妖魔 · 篝火处休息/修炼/突破"
+	hint.text = "WASD/方向键 移动 · E 交互 · Esc 关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	hint.position = Vector2(12, get_viewport_rect().size.y - 34)
@@ -361,6 +361,18 @@ func _open_rest_menu() -> void:
 
 	_hud.add_child(_menu)
 	_refresh_menu()
+	# 键盘操作：聚焦第一个可用按钮（方向键导航、回车确认、Esc 离开）
+	for node in _menu.find_children("*", "Button", true, false):
+		var b := node as Button
+		if b != null and not b.disabled:
+			b.grab_focus()
+			break
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _menu != null and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_close_rest_menu()
 
 
 func _apply_cultivate(m: CharacterState, el: int, amount: int) -> void:
