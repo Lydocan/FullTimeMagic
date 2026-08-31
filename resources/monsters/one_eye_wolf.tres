@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="MonsterData" format=3]
+
+[ext_resource type="Script" path="res://src/data/monster_data.gd" id="1_adn4q"]
+
+[resource]
+script = ExtResource("1_adn4q")
+id = "one_eye_wolf"
+monster_name = "独眼魔狼"
+tier_name = "战将级"
+max_hp = 60
+speed = 10
+attack = 10
+defense = 3
+shield = 2
+weaknesses = [2]
+xp_value = 20
+gold_value = 15
+essence_id = "essence_lightning"
+essence_chance = 0.4
+texture_path = "res://assets/images/monster_wolf.png"
+attack_power = 13
+special_name = "独眼魔光"
+special_power = 18
+special_chance = 0.25
+special_status = "paralyze"

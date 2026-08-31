@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MonsterData" format=3]
+
+[ext_resource type="Script" path="res://src/data/monster_data.gd" id="1_7osbs"]
+
+[resource]
+script = ExtResource("1_7osbs")
+id = "rat_swarm"
+monster_name = "鼠潮"
+max_hp = 26
+speed = 7
+defense = 1
+weaknesses = [0]
+gold_value = 6
+texture_path = "res://assets/images/monster_rat.png"
+special_name = "噬咬"

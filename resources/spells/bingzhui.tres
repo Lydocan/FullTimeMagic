@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="SpellData" format=3]
+
+[ext_resource type="Script" path="res://src/data/spell_data.gd" id="1_4ljyl"]
+
+[resource]
+script = ExtResource("1_4ljyl")
+id = "bingzhui"
+spell_name = "冰锥术"
+element = 1
+power = 13
+description = "冰系初阶法术，凝冰为锥刺击单体。（占位名，待核对）"

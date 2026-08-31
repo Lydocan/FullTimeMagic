@@ -15,7 +15,16 @@ git clone <仓库地址>
 cd FullTimeMagic
 ```
 
-然后用 Godot 打开项目根目录下的 `project.godot`，按 `F5` 运行即可看到主场景。
+然后用 Godot 打开项目根目录下的 `project.godot`，按 `F5` 运行。
+
+命令行验证（无头模式，不依赖图形界面）：
+
+```bash
+godot_console --headless --path . --import              # 导入资源
+godot_console --headless --path . res://tools/smoke_test.tscn   # M1 冒烟测试（退出码 0 = 通过）
+```
+
+当前可玩内容（M1 核心循环原型）：测试荒野中 WASD 移动，深草区踩暗雷进入回合制战斗（星辉增幅、弱点破魔），胜利得修为与精魄；篝火处休息、修炼、消耗精魄突破位阶；地图东侧有明雷精英「独眼魔狼王」。
 
 ## 目录结构
 
@@ -29,20 +38,16 @@ FullTimeMagic/
 │   ├── game_events.gd   #   GameEvents：全局事件总线（信号）
 │   └── game_state.gd    #   GameState：全局游戏状态
 ├── src/                 # 游戏代码（场景 + 对应脚本，按功能分目录）
-│   ├── main/            #   主场景
-│   ├── player/          #   玩家
-│   ├── world/           #   世界 / 关卡
-│   └── ui/              #   界面（背包、对话框、HUD 等）
-├── assets/              # 原始素材
-│   ├── audio/           #   音乐与音效
-│   ├── fonts/           #   字体
-│   ├── sprites/         #   角色与物件图片
-│   └── tilemaps/        #   瓦片地图与图块集
-├── resources/           # 自定义 .tres 资源（物品、技能、对话等数据）
-├── shaders/             # 着色器
-├── themes/              # UI 主题
-├── addons/              # 第三方插件
-└── docs/                # 设计与开发文档
+│   ├── data/            #   数据类：元素/位阶常量、法术、妖魔、角色状态
+│   ├── world/           #   探索：测试荒野、玩家控制、篝火交互
+│   ├── battle/          #   回合制战斗（星辰增幅 + 魔盾破魔）
+│   ├── main/            #   主场景（标题界面，待做）
+│   └── ui/              #   界面（背包、对话框、HUD 等，待做）
+├── assets/              # 素材（images/ 为程序生成的占位美术，正式美术就位后替换）
+├── resources/           # 自定义 .tres 数据（spells/ 法术、monsters/ 妖魔）
+├── tools/               # 开发工具脚本与无头冒烟测试
+├── shaders/  themes/  addons/
+└── docs/                # 设计文档（GDD、世界观、人物、玩法）
 ```
 
 ## 开发规范

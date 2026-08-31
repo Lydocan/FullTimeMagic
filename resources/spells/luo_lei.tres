@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SpellData" format=3]
+
+[ext_resource type="Script" path="res://src/data/spell_data.gd" id="1_u0ltr"]
+
+[resource]
+script = ExtResource("1_u0ltr")
+id = "luo_lei"
+spell_name = "落雷"
+element = 2
+power = 9
+mp_cost = 8
+target_all = true
+description = "雷系初阶法术，落雷打击全体。（占位名，待核对）"

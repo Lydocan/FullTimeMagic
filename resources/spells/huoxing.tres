@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellData" format=3]
+
+[ext_resource type="Script" path="res://src/data/spell_data.gd" id="1_378uj"]
+
+[resource]
+script = ExtResource("1_378uj")
+id = "huoxing"
+spell_name = "火星迸溅"
+power = 8
+mp_cost = 7
+target_all = true
+status_effect = "burn"
+status_chance = 0.15
+description = "火系初阶法术，火星四溅波及全体。（占位名，待核对）"

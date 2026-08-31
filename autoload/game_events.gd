@@ -2,20 +2,33 @@ extends Node
 ## 全局事件总线（autoload：GameEvents）。
 ##
 ## 用于场景与节点之间的解耦通信：任何节点都可以发送或监听这里的信号，
-## 避免节点之间直接持有引用。按需在这里补充全局级信号。
+## 避免节点之间直接持有引用。
 
+## —— 探索 ↔ 战斗 ——
 
-## 玩家生命值变化（当前值, 最大值）。
-signal player_health_changed(current: int, max_health: int)
+## 遇敌触发（enemy_ids 为 GameData.MONSTERS 的 id 列表）。
+signal encounter_started(enemy_ids: Array)
 
-## 玩家拾取物品（物品 ID）。
-signal item_picked_up(item_id: String)
+## 战斗结束（victory 是否胜利；fled 表示逃跑）。
+signal battle_finished(victory: bool, fled: bool)
 
-## 玩家金币数量变化（当前总金币）。
+## —— 成长（位阶体系）——
+
+## 获得修为。
+signal xp_gained(member_name: String, element: int, amount: int)
+
+## 星子点亮跨过星级。
+signal star_advanced(member_name: String, element: int, stage: int, star: int)
+
+## 一系三星圆满，进入瓶颈。
+signal bottleneck_reached(member_name: String, element: int)
+
+## 突破晋升到新阶。
+signal stage_advanced(member_name: String, element: int, stage: int)
+
+## —— 资源与状态 ——
+
 signal gold_changed(total: int)
-
-## 请求打开某个界面（界面名，如 "inventory"、"pause_menu"）。
-signal ui_open_requested(ui_name: String)
-
-## 请求切换场景（目标场景路径）。
-signal scene_change_requested(scene_path: String)
+signal essence_changed(essence_id: String, total: int)
+## 队伍 HP/MP 等状态变化（HUD 刷新）。
+signal party_status_changed

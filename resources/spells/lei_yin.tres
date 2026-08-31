@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SpellData" format=3]
+
+[ext_resource type="Script" path="res://src/data/spell_data.gd" id="1_uhndm"]
+
+[resource]
+script = ExtResource("1_uhndm")
+id = "lei_yin"
+spell_name = "雷印"
+element = 2
+power = 13
+status_effect = "paralyze"
+status_chance = 0.2
+description = "雷系初阶法术，单体雷击，概率麻痹。（原著法术名，数值为原型设计）"

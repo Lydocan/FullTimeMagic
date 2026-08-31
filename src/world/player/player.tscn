@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/world/player/player.gd" id="1_player"]
+[ext_resource type="Texture2D" path="res://assets/images/char_mofan.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="body_shape"]
+size = Vector2(16, 12)
+
+[sub_resource type="RectangleShape2D" id="interact_shape"]
+size = Vector2(32, 28)
+
+[node name="Player" type="CharacterBody2D"]
+motion_mode = 1
+script = ExtResource("1_player")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_tex")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("body_shape")
+
+[node name="InteractZone" type="Area2D" parent="."]
+
+[node name="InteractShape" type="CollisionShape2D" parent="InteractZone"]
+shape = SubResource("interact_shape")
+
+[node name="Camera" type="Camera2D" parent="."]
+zoom = Vector2(2, 2)
+position_smoothing_enabled = true
+position_smoothing_speed = 6.0
