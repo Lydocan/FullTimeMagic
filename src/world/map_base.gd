@@ -13,6 +13,7 @@ const PLAYER_SCENE := preload("res://src/world/player/player.tscn")
 const CAMPFIRE_SCRIPT := preload("res://src/world/campfire.gd")
 const NPC_SCRIPT := preload("res://src/world/npc.gd")
 const FOLLOWER_SCRIPT := preload("res://src/world/follower.gd")
+const MINIMAP_SCRIPT := preload("res://src/ui/minimap.gd")
 const BATTLE_SCENE := "res://src/battle/battle.tscn"
 
 ## 成员 id → 地图跟随立绘（战斗立绘同源；新增成员时在此登记）。
@@ -50,6 +51,7 @@ var _menu: Control = null
 var _menu_result: Label = null
 var _wealth_label: Label
 var _objective_label: Label
+var _party_box: VBoxContainer
 var _hud: CanvasLayer
 
 
@@ -409,15 +411,18 @@ func _build_hud() -> void:
 	add_child(_hud)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(12, 12)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
-	panel.add_child(box)
+	_party_box = VBoxContainer.new()
+	_party_box.add_theme_constant_override("separation", 4)
+	panel.add_child(_party_box)
 	for m in GameState.party:
-		var label := Label.new()
-		label.add_theme_font_size_override("font_size", 13)
-		box.add_child(label)
-		m.set_meta("hud_label", label.get_instance_id())
+		_ensure_member_block(m)
 	_hud.add_child(panel)
+
+	var vw := get_viewport_rect().size.x
+	var mm := MINIMAP_SCRIPT.new()
+	mm.setup(self)
+	_hud.add_child(mm)
+	mm.position = Vector2(vw - mm.size.x - 12, 12)
 
 	var hint := Label.new()
 	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
@@ -434,23 +439,76 @@ func _build_hud() -> void:
 
 	_wealth_label = Label.new()
 	_wealth_label.add_theme_font_size_override("font_size", 13)
-	_wealth_label.position = Vector2(get_viewport_rect().size.x - 300, 12)
+	_wealth_label.position = Vector2(vw - mm.size.x - 12, mm.size.y + 20)
 	_hud.add_child(_wealth_label)
+
+
+## —— 队员状态块：姓名行 + HP/MP 进度条（条上叠数值） ——
+
+## 取队员的状态块，没有则现建（中途入队的成员也能即时补上）。
+## 跨场景后旧块已随旧 HUD 销毁，失效时重建。
+func _ensure_member_block(m: CharacterState) -> void:
+	if m.has_meta("hud_block"):
+		var blk: Dictionary = m.get_meta("hud_block")
+		if is_instance_valid(blk["name"]):
+			return
+		m.remove_meta("hud_block")
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	_party_box.add_child(col)
+	var name_label := Label.new()
+	name_label.add_theme_font_size_override("font_size", 13)
+	col.add_child(name_label)
+	m.set_meta("hud_block", {
+		"name": name_label,
+		"hp": _make_stat_bar(Color("c0504d"), col),
+		"mp": _make_stat_bar(Color("4f7dc9"), col),
+	})
+
+
+func _make_stat_bar(fill_color: Color, parent: Control) -> Dictionary:
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(200, 15)
+	bar.show_percentage = false
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0, 0, 0, 0.55)
+	bg.set_corner_radius_all(3)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+	var text := Label.new()
+	text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text.add_theme_font_size_override("font_size", 10)
+	text.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	text.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	text.add_theme_constant_override("shadow_offset_y", 1)
+	bar.add_child(text)
+	parent.add_child(bar)
+	return {"bar": bar, "text": text}
+
+
+func _update_stat_bar(stat: Dictionary, value: int, max_value: int, prefix: String) -> void:
+	var bar: ProgressBar = stat["bar"]
+	bar.max_value = maxi(max_value, 1)
+	bar.value = value
+	(stat["text"] as Label).text = "%s %d/%d" % [prefix, value, max_value]
 
 
 func _refresh_hud() -> void:
 	_objective_label.text = "◆ " + _objective_text()
 	for m in GameState.party:
-		var id: int = m.get_meta("hud_label", 0)
-		var label := instance_from_id(id) as Label
-		if label == null:
-			continue
+		_ensure_member_block(m)
+		var blk: Dictionary = m.get_meta("hud_block")
 		var el: int = m.form_element() if m.can_switch_form else m.main_element
-		label.text = "%s  %s\nHP %d/%d   MP %d/%d" % [
-			m.char_name, m.rank_label(el),
-			m.hp, m.eff_max_hp(), m.mp, m.eff_max_mp(),
-		]
-		label.add_theme_color_override("font_color", GameTypes.element_color(el).lightened(0.3))
+		var name_label: Label = blk["name"]
+		name_label.text = "%s · %s" % [m.char_name, m.rank_label(el)]
+		name_label.add_theme_color_override("font_color", GameTypes.element_color(el).lightened(0.3))
+		_update_stat_bar(blk["hp"], m.hp, m.eff_max_hp(), "HP")
+		_update_stat_bar(blk["mp"], m.mp, m.eff_max_mp(), "MP")
 	var ess := []
 	for eid in GameState.essences:
 		if GameState.essences[eid] > 0:
@@ -482,6 +540,12 @@ func _objective_text() -> String:
 	if not flag("duel_done"):
 		return "目标：天澜高中门口——毕业决斗，夺得地圣泉名额"
 	return "毕业决斗·完——地圣泉修行将在后续版本开放"
+
+
+## 当前主线目标在本图的落点（世界坐标），小地图黄三角据此指向。
+## 目标不在本图 / 剧情完结时返回 Vector2.INF（不画三角）。子类按旗标覆盖。
+func objective_target() -> Vector2:
+	return Vector2.INF
 
 
 ## —— 菜单骨架（篝火/商店/背包共用） ——

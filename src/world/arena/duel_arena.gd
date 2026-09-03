@@ -48,3 +48,10 @@ func setup_triggers() -> void:
 			"学生", "", Callable())
 	add_npc(Vector2i(24, 3), "res://assets/images/char_merchant.png",
 			"围观大婶", "", Callable())
+
+
+## 主线落点：决斗结束前始终指向台中央。
+func objective_target() -> Vector2:
+	if not flag("duel_done"):
+		return _cell_center(STAGE_CELL)
+	return Vector2.INF

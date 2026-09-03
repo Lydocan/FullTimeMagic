@@ -78,3 +78,16 @@ func setup_triggers() -> void:
 				{"kind": "equip", "id": "yuebai_pao"},
 				{"kind": "equip", "id": "lansui_zhui"},
 			])
+
+
+## 主线落点：觉醒典礼唐月 → 北门（去林地试练）→ 穆宁雪 → 宇昂（挑衅/毕业决斗）。
+func objective_target() -> Vector2:
+	if not flag("prologue_awaken_done"):
+		return _cell_center(Vector2i(8, 19))   # 觉醒典礼·唐月
+	if not flag("prologue_done"):
+		return _cell_center(NORTH_GATE)        # 经北门去灰雾林地
+	if not flag("ch1_mufu_done"):
+		return _cell_center(Vector2i(30, 13))  # 东街·穆宁雪
+	if not flag("ch1_yuang_done") or (flag("chapter1_half_done") and not flag("duel_intro_done")):
+		return _cell_center(Vector2i(13, 6))   # 天澜高中门口·宇昂
+	return Vector2.INF

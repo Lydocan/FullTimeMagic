@@ -72,3 +72,14 @@ func setup_triggers() -> void:
 	add_npc(Vector2i(8, 18), "res://assets/images/char_tangyue.png",
 			"唐月", "prologue_done",
 			func() -> void: await Story.grove_tutorial(self))
+
+
+## 主线落点：教学战唐月 → 狼王 → 狼王尸体旁的黑教廷线索。
+func objective_target() -> Vector2:
+	if not flag("prologue_done"):
+		return _cell_center(Vector2i(8, 18))   # 入口等待的唐月
+	if not flag("elite_wolf_dead"):
+		return _cell_center(Vector2i(34, 14))  # 独眼魔狼王
+	if not flag("chapter1_half_done"):
+		return _cell_center(Vector2i(34, 13))  # 尸体旁线索触发点
+	return Vector2.INF
