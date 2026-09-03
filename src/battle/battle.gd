@@ -6,14 +6,28 @@ extends Node2D
 
 enum Phase { INTRO, COMMAND, SPELL_SELECT, ITEM_SELECT, TARGET, RESOLVING, ENEMY, VICTORY, DEFEAT }
 
+## 按路径引用单位视图脚本：不依赖 class_name 全局缓存，
+## 避免 .godot 缓存过期时改动不生效（项目既有坑，见 map_base 注释）。
+const BattleActorScript := preload("res://src/battle/battle_actor.gd")
+
 const WORLD_SCENE := "res://src/world/test_wilds/test_wilds.tscn"
 const BG_TEXTURE := "res://assets/images/battle_bg_proto.png"
+
+## —— 界面设计变量（深紫夜色 + 金色强调，与探索 HUD 同一观感体系） ——
+const COL_PANEL_BG := Color(0.055, 0.04, 0.11, 0.94)
+const COL_PANEL_EDGE := Color(0.48, 0.38, 0.72, 0.55)
+const COL_GOLD := Color("ffd166")
+const COL_STAR := Color("c792ff")
+const COL_HP := Color("c0504d")
+const COL_MP := Color("4f7dc9")
+const COL_DMG := Color("ff6b5e")
+const COL_HEAL := Color("7dde8a")
 
 ## 每回合行动者积攒的星辉上限（出招时消耗，1 点 = 法术 +1 段）。
 const MAX_STARS := 3
 
 var _party: Array[CharacterState] = []
-var _party_actors: Array[BattleActor] = []
+var _party_actors: Array[BattleActorScript] = []
 var _enemies: Array[Dictionary] = []  # {data, hp, shield, broken, burn, paralyzed, discovered, actor}
 var _order: Array[Dictionary] = []    # {"side": "party"/"enemy", "index": int}
 var _turn := 0
@@ -33,11 +47,18 @@ var _info_label: Label
 var _rank_label: Label
 var _hp_bar: ProgressBar
 var _mp_bar: ProgressBar
+var _hp_text: Label
+var _mp_text: Label
 var _stars_label: Label
 var _boost_value: Label
 var _log_label: Label
-var _order_label: Label
+var _order_box: HBoxContainer
+var _order_chips: Array[Label] = []
 var _target_hint: Label
+# 演出层：震屏 / 闪光 / 濒死红晕 / 伤害数字
+var _fx_layer: CanvasLayer
+var _vignette: TextureRect
+var _shake_amt := 0.0
 
 
 func _ready() -> void:
@@ -56,6 +77,7 @@ func _ready() -> void:
 	_spawn_party_actors()
 	_build_ui()
 	_log("遭遇妖魔：%s" % "、".join(_enemy_names()))
+	_stamp("遭 遇 战", Color("ff8a7a"))
 	Audio.play_bgm("battle")
 	_start_round()
 
@@ -76,123 +98,159 @@ func _spawn_enemies() -> void:
 		ids = ["rat_swarm"]
 	for i in ids.size():
 		var data := GameData.load_monster(ids[i])
-		var actor := BattleActor.new()
+		var actor := BattleActorScript.new()
 		actor.setup(load(data.texture_path), data.monster_name, data.sprite_scale)
-		actor.position = Vector2(640 + (i - (ids.size() - 1) * 0.5) * 170.0, 170)
+		actor.position = Vector2(640 + (i - (ids.size() - 1) * 0.5) * 220.0, 210)
 		actor.set_weaknesses(data.weaknesses, [])
 		add_child(actor)
+		# 登场演出：自上方压入场 + 落地震屏，错峰登场压出压迫感
+		var target := actor.position
+		actor.position = target + Vector2(0, -70)
+		actor.modulate.a = 0.0
+		var tw := create_tween()
+		tw.tween_interval(0.08 + i * 0.14)
+		tw.tween_callback(func() -> void: Audio.play_sfx("encounter"))
+		tw.set_parallel(true)
+		tw.tween_property(actor, "position", target, 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		tw.tween_property(actor, "modulate:a", 1.0, 0.22)
 		_enemies.append({
 			"data": data, "hp": data.max_hp, "shield": data.shield,
 			"broken": false, "burn": 0, "paralyzed": false, "discovered": [],
 			"actor": actor,
 		})
+	_shake(6.0)
 
 
 func _spawn_party_actors() -> void:
 	var textures := ["res://assets/images/char_mofan.png", "res://assets/images/char_muningxue.png"]
 	for i in _party.size():
-		var actor := BattleActor.new()
+		var actor := BattleActorScript.new()
 		var tex_path: String = textures[i] if i < textures.size() else textures[0]
-		actor.setup(load(tex_path), _party[i].char_name)
-		actor.position = Vector2(540 + i * 200.0, 450)
+		actor.setup(load(tex_path), _party[i].char_name, 2.2)
+		actor.position = Vector2(500 + i * 260.0, 480)
 		actor.set_shield(0, 0)
 		add_child(actor)
 		_party_actors.append(actor)
 
 
 func _build_ui() -> void:
+	_fx_layer = CanvasLayer.new()
+	_fx_layer.layer = 5
+	add_child(_fx_layer)
+	_build_gradation()
+	_build_vignette()
+
 	var layer := CanvasLayer.new()
+	layer.layer = 10
 	add_child(layer)
 
-	_order_label = Label.new()
-	_order_label.position = Vector2(16, 10)
-	_order_label.add_theme_font_size_override("font_size", 14)
-	layer.add_child(_order_label)
+	# 顶部左：行动顺序铭牌（当前行动者金色高亮）
+	_order_box = HBoxContainer.new()
+	_order_box.position = Vector2(16, 10)
+	_order_box.add_theme_constant_override("separation", 6)
+	layer.add_child(_order_box)
 
+	# 顶部右：操作提示
 	var keys_hint := Label.new()
-	keys_hint.text = "方向键/WASD 选择 · 回车/E 确认 · Z 循环增幅 · Esc 返回（鼠标可辅助）"
-	keys_hint.position = Vector2(16, 32)
+	keys_hint.text = "方向键/WASD 选择 · 回车/E 确认 · Z 循环增幅 · Esc 返回"
 	keys_hint.add_theme_font_size_override("font_size", 12)
-	keys_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	keys_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
+	keys_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	keys_hint.add_theme_constant_override("outline_size", 3)
+	keys_hint.position = Vector2(1280 - 420, 12)
 	layer.add_child(keys_hint)
 
 	_target_hint = Label.new()
-	_target_hint.position = Vector2(540, 40)
+	_target_hint.position = Vector2(340, 40)
 	_target_hint.add_theme_font_size_override("font_size", 15)
-	_target_hint.add_theme_color_override("font_color", Color("ffd166"))
+	_target_hint.add_theme_color_override("font_color", COL_GOLD)
+	_target_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	_target_hint.add_theme_constant_override("outline_size", 4)
 	_target_hint.text = "选择目标：←→ 切换 · 回车 确认 · Esc 返回（鼠标点击亦可）"
 	_target_hint.visible = false
 	layer.add_child(_target_hint)
 
+	# 战报行：底部指令台上方居中
 	_log_label = Label.new()
-	_log_label.position = Vector2(16, 522)
-	_log_label.size = Vector2(1250, 26)
+	_log_label.position = Vector2(40, 536)
+	_log_label.size = Vector2(1200, 24)
+	_log_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_log_label.add_theme_font_size_override("font_size", 14)
+	_log_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_log_label.add_theme_constant_override("outline_size", 4)
 	layer.add_child(_log_label)
 
+	# 底部指令台：成员卡 │ 指令 │ 法术+增幅 一体化面板
 	_cmd_root = Control.new()
-	_cmd_root.position = Vector2(0, 552)
+	_cmd_root.position = Vector2(16, 566)
 	layer.add_child(_cmd_root)
 
-	# 左：当前行动成员状态
-	var info := PanelContainer.new()
-	info.position = Vector2(16, 0)
-	info.custom_minimum_size = Vector2(300, 156)
-	_cmd_root.add_child(info)
-	var ibox := VBoxContainer.new()
-	info.add_child(ibox)
+	var deck := PanelContainer.new()
+	deck.custom_minimum_size = Vector2(1248, 144)
+	_style_panel(deck)
+	_cmd_root.add_child(deck)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	deck.add_child(row)
+
+	# 左：当前行动成员卡
+	var card := VBoxContainer.new()
+	card.custom_minimum_size = Vector2(292, 0)
+	card.add_theme_constant_override("separation", 2)
+	row.add_child(card)
 	_info_label = Label.new()
-	_info_label.add_theme_font_size_override("font_size", 16)
-	ibox.add_child(_info_label)
+	_info_label.add_theme_font_size_override("font_size", 17)
+	card.add_child(_info_label)
 	_rank_label = Label.new()
 	_rank_label.add_theme_font_size_override("font_size", 13)
-	ibox.add_child(_rank_label)
-	_hp_bar = _bar()
-	ibox.add_child(_hp_bar)
-	_mp_bar = _bar()
-	_mp_bar.modulate = Color(0.7, 0.85, 1.0)
-	ibox.add_child(_mp_bar)
+	card.add_child(_rank_label)
+	var hp_pack := _bar(COL_HP)
+	_hp_bar = hp_pack["bar"]
+	_hp_text = hp_pack["text"]
+	card.add_child(_hp_bar)
+	var mp_pack := _bar(COL_MP)
+	_mp_bar = mp_pack["bar"]
+	_mp_text = mp_pack["text"]
+	card.add_child(_mp_bar)
 	_stars_label = Label.new()
-	_stars_label.add_theme_font_size_override("font_size", 13)
-	_stars_label.add_theme_color_override("font_color", Color("c792ff"))
-	ibox.add_child(_stars_label)
+	_stars_label.add_theme_font_size_override("font_size", 14)
+	_stars_label.add_theme_color_override("font_color", COL_STAR)
+	card.add_child(_stars_label)
 
 	# 中：指令
-	var cmd_panel := PanelContainer.new()
-	cmd_panel.position = Vector2(332, 0)
-	cmd_panel.custom_minimum_size = Vector2(210, 156)
-	_cmd_root.add_child(cmd_panel)
-	var cbox := VBoxContainer.new()
-	cbox.add_theme_constant_override("separation", 4)
-	cmd_panel.add_child(cbox)
-	_add_cmd_button(cbox, "法术", _open_spell_list)
-	_add_cmd_button(cbox, "道具", _open_battle_items)
-	_add_cmd_button(cbox, "切换形态", _on_switch_form)
-	_add_cmd_button(cbox, "防御（+1 星辉）", _on_defend)
-	_add_cmd_button(cbox, "逃跑", _on_flee)
+	var cmd_panel := VBoxContainer.new()
+	cmd_panel.custom_minimum_size = Vector2(204, 0)
+	cmd_panel.add_theme_constant_override("separation", 3)
+	row.add_child(cmd_panel)
+	_add_cmd_button(cmd_panel, "法术", _open_spell_list)
+	_add_cmd_button(cmd_panel, "道具", _open_battle_items)
+	_add_cmd_button(cmd_panel, "切换形态", _on_switch_form)
+	_add_cmd_button(cmd_panel, "防御（+1 星辉）", _on_defend)
+	_add_cmd_button(cmd_panel, "逃跑", _on_flee)
 
 	# 右：法术列表 + 星辉增幅
-	var spell_panel := PanelContainer.new()
-	spell_panel.position = Vector2(558, 0)
-	spell_panel.custom_minimum_size = Vector2(430, 156)
-	_cmd_root.add_child(spell_panel)
 	var sbox := VBoxContainer.new()
+	sbox.custom_minimum_size = Vector2(680, 0)
 	sbox.add_theme_constant_override("separation", 2)
-	spell_panel.add_child(sbox)
+	row.add_child(sbox)
 	var boost_row := HBoxContainer.new()
+	boost_row.add_theme_constant_override("separation", 8)
 	sbox.add_child(boost_row)
-	var boost_down := Button.new()
-	boost_down.text = "▼"
+	var boost_down := _mk_btn("▼", 13)
 	boost_down.pressed.connect(func() -> void: _adjust_boost(-1))
 	boost_row.add_child(boost_down)
 	_boost_value = Label.new()
 	_boost_value.add_theme_font_size_override("font_size", 14)
-	_boost_value.add_theme_color_override("font_color", Color("c792ff"))
+	_boost_value.add_theme_color_override("font_color", COL_STAR)
 	boost_row.add_child(_boost_value)
-	var boost_up := Button.new()
-	boost_up.text = "Z 循环增幅"
+	var boost_up := _mk_btn("Z 循环增幅", 13)
 	boost_up.pressed.connect(_cycle_boost)
 	boost_row.add_child(boost_up)
+	var boost_note := Label.new()
+	boost_note.text = "每点星辉 = 法术 +1 段"
+	boost_note.add_theme_font_size_override("font_size", 11)
+	boost_note.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+	boost_row.add_child(boost_note)
 	_spell_box = VBoxContainer.new()
 	_spell_box.add_theme_constant_override("separation", 2)
 	sbox.add_child(_spell_box)
@@ -200,19 +258,203 @@ func _build_ui() -> void:
 	_hide_command()
 
 
-func _bar() -> ProgressBar:
+## 氛围渐变：上下压暗（占位背景太亮太素，压出战场阴影感，UI 区也更聚焦）。
+func _build_gradation() -> void:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.35, 0.62, 1.0])
+	g.colors = PackedColorArray([
+		Color(0.02, 0.01, 0.05, 0.72),
+		Color(0, 0, 0, 0.0),
+		Color(0, 0, 0, 0.0),
+		Color(0.02, 0.01, 0.05, 0.85),
+	])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill_from = Vector2(0.5, 0.0)
+	tex.fill_to = Vector2(0.5, 1.0)
+	tex.width = 64
+	tex.height = 64
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx_layer.add_child(rect)
+
+
+func _build_vignette() -> void:
+	var g := Gradient.new()
+	g.set_offset(0, 0.55)
+	g.set_color(0, Color(0.55, 0.04, 0.04, 0.0))
+	g.set_offset(1, 1.0)
+	g.set_color(1, Color(0.55, 0.04, 0.04, 0.6))
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, -0.1)
+	tex.width = 640
+	tex.height = 360
+	_vignette = TextureRect.new()
+	_vignette.texture = tex
+	_vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette.modulate.a = 0.0
+	_fx_layer.add_child(_vignette)
+
+
+func _process(delta: float) -> void:
+	# 震屏衰减（只摇世界层，UI 层稳如桌面）
+	if _shake_amt > 0.15:
+		_shake_amt = lerpf(_shake_amt, 0.0, 9.0 * delta)
+		position = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake_amt
+	elif position != Vector2.ZERO:
+		position = Vector2.ZERO
+	# 濒死红晕：有人血线告急就持续脉动
+	var crit := false
+	for m in _party:
+		if m.hp > 0 and m.hp < m.eff_max_hp() * 0.28:
+			crit = true
+	var target_a := (0.7 + 0.3 * sin(Time.get_ticks_msec() / 180.0)) if crit else 0.0
+	_vignette.modulate.a = lerpf(_vignette.modulate.a, target_a, 4.0 * delta)
+
+
+## —— 样式与演出辅助 ——
+
+func _style_panel(panel: PanelContainer) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = COL_PANEL_BG
+	sb.border_color = COL_PANEL_EDGE
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(8)
+	sb.set_content_margin_all(10)
+	panel.add_theme_stylebox_override("panel", sb)
+
+
+func _style_button(btn: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.13, 0.1, 0.22, 0.9)
+	normal.border_color = Color(0.4, 0.3, 0.62, 0.7)
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(5)
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	var hover := normal.duplicate()
+	hover.bg_color = Color(0.2, 0.15, 0.34, 0.95)
+	hover.border_color = COL_GOLD
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color(0.3, 0.22, 0.48, 1.0)
+	var disabled := normal.duplicate()
+	disabled.bg_color = Color(0.1, 0.09, 0.14, 0.6)
+	disabled.border_color = Color(0.3, 0.3, 0.36, 0.4)
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = COL_GOLD
+	focus.set_border_width_all(2)
+	focus.set_corner_radius_all(5)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("disabled", disabled)
+	btn.add_theme_stylebox_override("focus", focus)
+
+
+func _mk_btn(text: String, font_size := 14) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.add_theme_font_size_override("font_size", font_size)
+	_style_button(btn)
+	return btn
+
+
+func _bar(fill_color: Color) -> Dictionary:
 	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(0, 16)
+	bar.custom_minimum_size = Vector2(0, 17)
 	bar.show_percentage = false
-	return bar
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0, 0, 0, 0.55)
+	bg.set_corner_radius_all(3)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+	var text := Label.new()
+	text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text.add_theme_font_size_override("font_size", 10)
+	text.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	text.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	text.add_theme_constant_override("shadow_offset_y", 1)
+	bar.add_child(text)
+	return {"bar": bar, "text": text}
 
 
 func _add_cmd_button(parent: Node, text: String, action: Callable) -> void:
-	var btn := Button.new()
-	btn.text = text
+	var btn := _mk_btn(text, 14)
 	btn.pressed.connect(action)
 	parent.add_child(btn)
 	_cmd_buttons.append(btn)
+
+
+## 伤害/回复数字：从单位头顶飘起消散。
+func _popup(pos: Vector2, text: String, color: Color, size := 20) -> void:
+	var lb := Label.new()
+	lb.text = text
+	lb.add_theme_font_size_override("font_size", size)
+	lb.add_theme_color_override("font_color", color)
+	lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	lb.add_theme_constant_override("outline_size", 5)
+	lb.position = pos + Vector2(randf_range(-16, 16), -36)
+	lb.z_index = 60
+	add_child(lb)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(lb, "position:y", lb.position.y - 48.0, 0.75).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lb, "modulate:a", 0.0, 0.75).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(lb.queue_free)
+
+
+func _shake(strength: float) -> void:
+	_shake_amt = maxf(_shake_amt, strength)
+
+
+func _flash_screen(color: Color, dur := 0.28) -> void:
+	var rect := ColorRect.new()
+	rect.color = color
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx_layer.add_child(rect)
+	var tw := create_tween()
+	tw.tween_property(rect, "color:a", 0.0, dur)
+	tw.tween_callback(rect.queue_free)
+
+
+## 大字盖章：破魔/胜利等关键演出，缩放砸下再消隐。
+func _stamp(text: String, color: Color) -> void:
+	var lb := Label.new()
+	lb.text = text
+	lb.add_theme_font_size_override("font_size", 58)
+	lb.add_theme_color_override("font_color", color)
+	lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	lb.add_theme_constant_override("outline_size", 10)
+	lb.set_anchors_preset(Control.PRESET_CENTER)
+	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lb.z_index = 70
+	_fx_layer.add_child(lb)
+	lb.reset_size()
+	lb.pivot_offset = lb.size / 2.0
+	lb.scale = Vector2(1.6, 1.6)
+	lb.modulate.a = 0.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(lb, "scale", Vector2.ONE, 0.16).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(lb, "modulate:a", 1.0, 0.12)
+	tw.chain().tween_interval(0.45)
+	tw.chain().tween_property(lb, "modulate:a", 0.0, 0.3)
+	tw.chain().tween_callback(lb.queue_free)
 
 
 ## —— 回合流转 ——
@@ -240,20 +482,60 @@ func _speed_of(entry: Dictionary) -> int:
 	return _enemies[entry["index"]]["data"].speed
 
 
+## 行动顺序铭牌：一枚单位一枚圆角铭牌，轮到谁谁亮金。
 func _update_order_label() -> void:
-	var names := []
+	for chip in _order_chips:
+		chip.queue_free()
+	_order_chips.clear()
 	for entry in _order:
+		var name_text: String
+		var color: Color
 		if entry["side"] == "party":
-			names.append(_party[entry["index"]].char_name)
+			name_text = _party[entry["index"]].char_name
+			color = Color("9fd8ff")
 		else:
-			names.append(_enemies[entry["index"]]["data"].monster_name)
-	_order_label.text = "行动顺序：" + " ▸ ".join(names)
+			name_text = _enemies[entry["index"]]["data"].monster_name
+			color = Color("ff9d8a")
+		var chip := Label.new()
+		chip.text = name_text
+		chip.add_theme_font_size_override("font_size", 13)
+		chip.add_theme_color_override("font_color", color)
+		chip.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		chip.add_theme_constant_override("outline_size", 3)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.05, 0.04, 0.1, 0.75)
+		sb.border_color = Color(0.4, 0.3, 0.62, 0.5)
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(10)
+		sb.content_margin_left = 9
+		sb.content_margin_right = 9
+		sb.content_margin_top = 2
+		sb.content_margin_bottom = 2
+		chip.add_theme_stylebox_override("normal", sb)
+		_order_box.add_child(chip)
+		_order_chips.append(chip)
+
+
+func _mark_order_turn() -> void:
+	for i in _order_chips.size():
+		if i == _turn:
+			_order_chips[i].add_theme_color_override("font_color", COL_GOLD)
+			_order_chips[i].add_theme_font_size_override("font_size", 15)
+		else:
+			var entry: Dictionary = _order[i] if i < _order.size() else {}
+			var alive: bool = not entry.is_empty() and (
+				(entry["side"] == "party" and _party[entry["index"]].hp > 0)
+				or (entry["side"] == "enemy" and _enemies[entry["index"]]["hp"] > 0))
+			var base_color := Color("9fd8ff") if entry.get("side") == "party" else Color("ff9d8a")
+			_order_chips[i].add_theme_color_override("font_color", base_color if alive else Color(0.5, 0.5, 0.5, 0.6))
+			_order_chips[i].add_theme_font_size_override("font_size", 13)
 
 
 func _next_turn() -> void:
 	if _turn >= _order.size():
 		_end_of_round()
 		return
+	_mark_order_turn()
 	var cur: Dictionary = _order[_turn]
 	if cur["side"] == "party":
 		var m := _party[cur["index"]]
@@ -336,8 +618,8 @@ func _update_member_panel(m: CharacterState) -> void:
 	_hp_bar.value = m.hp
 	_mp_bar.max_value = m.eff_max_mp()
 	_mp_bar.value = m.mp
-	_hp_bar.tooltip_text = "HP %d/%d" % [m.hp, m.eff_max_hp()]
-	_mp_bar.tooltip_text = "MP %d/%d" % [m.mp, m.eff_max_mp()]
+	_hp_text.text = "HP %d/%d" % [m.hp, m.eff_max_hp()]
+	_mp_text.text = "MP %d/%d" % [m.mp, m.eff_max_mp()]
 	_stars_label.text = "星辉 " + "◆".repeat(m.battle_stars) + "◇".repeat(MAX_STARS - m.battle_stars)
 	_refresh_boost_label()
 
@@ -352,12 +634,10 @@ func _fill_spell_list(m: CharacterState) -> void:
 	for s in m.usable_spells(el):
 		var spell := s
 		var spell_index := index
-		var btn := Button.new()
-		btn.text = "%s   威力%d ×%d段   MP%d%s" % [
+		var btn := _mk_btn("%s   威力%d ×%d段   MP%d%s" % [
 			spell.spell_name, spell.power, spell.hits, spell.mp_cost,
 			"  全体" if spell.target_all else "",
-		]
-		btn.add_theme_font_size_override("font_size", 13)
+		], 13)
 		btn.disabled = m.mp < spell.mp_cost
 		btn.pressed.connect(func() -> void:
 			_last_spell_index = spell_index
@@ -366,16 +646,13 @@ func _fill_spell_list(m: CharacterState) -> void:
 		_spell_box.add_child(btn)
 		_spell_buttons.append(btn)
 		index += 1
-	var back := Button.new()
-	back.text = "返回"
-	back.add_theme_font_size_override("font_size", 13)
+	var back := _mk_btn("返回", 13)
 	back.pressed.connect(_back_to_command)
 	_spell_box.add_child(back)
 
 
 func _set_cmd_buttons_enabled(on: bool) -> void:
-	var panel := _cmd_root.get_child(1) as PanelContainer
-	for btn in (panel.get_child(0) as VBoxContainer).get_children():
+	for btn in _cmd_buttons:
 		btn.disabled = not on
 
 
@@ -422,18 +699,14 @@ func _open_battle_items() -> void:
 		var item: ItemData = GameData.load_item(item_id)
 		if item == null:
 			continue
-		var btn := Button.new()
-		btn.text = "%s ×%d（%s）" % [item.item_name, GameState.items[item_id], item.effect_text()]
-		btn.add_theme_font_size_override("font_size", 13)
+		var btn := _mk_btn("%s ×%d（%s）" % [item.item_name, GameState.items[item_id], item.effect_text()], 13)
 		btn.pressed.connect(_choose_battle_item.bind(item_id))
 		_spell_box.add_child(btn)
 		_spell_buttons.append(btn)
 		if first:
 			btn.grab_focus()
 			first = false
-	var back := Button.new()
-	back.text = "返回"
-	back.add_theme_font_size_override("font_size", 13)
+	var back := _mk_btn("返回", 13)
 	back.pressed.connect(_back_to_command)
 	_spell_box.add_child(back)
 	_spell_buttons.append(back)
@@ -466,9 +739,7 @@ func _choose_battle_item(item_id: String) -> void:
 	var first := true
 	for m in _party:
 		var ok := _item_targets_ok(item, m)
-		var btn := Button.new()
-		btn.text = "%s  HP %d/%d  MP %d/%d" % [m.char_name, m.hp, m.eff_max_hp(), m.mp, m.eff_max_mp()]
-		btn.add_theme_font_size_override("font_size", 13)
+		var btn := _mk_btn("%s  HP %d/%d  MP %d/%d" % [m.char_name, m.hp, m.eff_max_hp(), m.mp, m.eff_max_mp()], 13)
 		btn.disabled = not ok
 		btn.pressed.connect(_use_battle_item.bind(m))
 		_spell_box.add_child(btn)
@@ -476,9 +747,7 @@ func _choose_battle_item(item_id: String) -> void:
 		if ok and first:
 			btn.grab_focus()
 			first = false
-	var back := Button.new()
-	back.text = "返回"
-	back.add_theme_font_size_override("font_size", 13)
+	var back := _mk_btn("返回", 13)
 	back.pressed.connect(_open_battle_items)
 	_spell_box.add_child(back)
 	_spell_buttons.append(back)
@@ -500,6 +769,8 @@ func _use_battle_item(m: CharacterState) -> void:
 			m.reset_battle_state()
 	Audio.play_sfx("rest")
 	_log("%s 使用了 %s（%s）。" % [_member.char_name, item.item_name, m.char_name])
+	var actor := _party_actors[_party.find(m)]
+	_popup(actor.position + Vector2(0, -actor._half_h), "+%d" % item.amount if item.kind != "revive" else "复苏", COL_HEAL, 22)
 	_sync_all()
 	_hide_command()
 	_advance()
@@ -612,7 +883,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			for e in _enemies:
-				if e["hp"] > 0 and e["actor"].position.distance_to(get_global_mouse_position()) < 70.0:
+				if e["hp"] > 0 and e["actor"].position.distance_to(get_global_mouse_position()) < 90.0:
 					var known := []
 					for el in e["discovered"]:
 						known.append(GameTypes.element_name(el))
@@ -639,6 +910,11 @@ func _resolve_player_spell() -> void:
 	_log("%s 施展「%s」%s（%d 段）" % [
 		m.char_name, s.spell_name, "◆星辉增幅 " if boost > 0 else "", hits,
 	])
+	# 施法演出：行动者后仰起手 + 星辉增幅时紫光一闪
+	var caster := _party_actors[_party.find(m)]
+	caster.windup()
+	if boost > 0:
+		_flash_screen(Color(0.66, 0.45, 1.0, 0.22), 0.3)
 	var targets: Array = _alive_enemies() if s.target_all else [_enemies[_target_entry]]
 	for h in hits:
 		for e in targets:
@@ -673,14 +949,27 @@ func _hit_enemy(user: CharacterState, e: Dictionary, s: SpellData) -> void:
 				e["broken"] = true
 				Audio.play_sfx("break")
 				_log("◆ 破魔！%s 眩晕，承伤加深！" % data.monster_name)
+				# 破魔大演出：金字盖章 + 白闪 + 重震
+				_stamp("破 魔 ！", COL_GOLD)
+				_flash_screen(Color(1.0, 0.95, 0.75, 0.4))
+				_shake(13.0)
 	e["hp"] = maxi(e["hp"] - dmg, 0)
 	Audio.play_sfx("hit")
 	_log("%s 对 %s 造成 %d 伤害%s。" % [user.char_name, data.monster_name, dmg, "（破魔）" if e["broken"] else ""])
+	# 命中反馈：弱点金色大字，普伤白字；破魔状态下伤害更深用大号
+	if is_weak:
+		_popup(e["actor"].position + Vector2(0, -e["actor"]._half_h), "%d！" % dmg, COL_GOLD, 24)
+		_shake(7.0)
+	else:
+		_popup(e["actor"].position + Vector2(0, -e["actor"]._half_h), str(dmg), COL_DMG if not e["broken"] else COL_GOLD, 20 if not e["broken"] else 24)
+		_shake(3.5)
 	if e["hp"] <= 0:
 		e["actor"].fade_out()
+		_popup(e["actor"].position, "击破", Color(1, 1, 1, 0.9), 18)
+		_shake(6.0)
 		_log("%s 被击败！" % data.monster_name)
 	else:
-		e["actor"].flash()
+		e["actor"].hurt()
 
 
 func _apply_enemy_status(e: Dictionary, status: String) -> void:
@@ -705,6 +994,17 @@ func _enemy_act(e: Dictionary) -> void:
 	if targets.is_empty():
 		return
 	var victims: Array = targets if (use_special and d.special_target_all) else [targets.pick_random()]
+	# 攻击演出：扑向首个受害者；特技红光警示 + 重震，压迫感拉满
+	var victim: CharacterState = victims[0]
+	var victim_actor := _party_actors[_party.find(victim)]
+	var attacker: BattleActorScript = e["actor"]
+	var dir: Vector2 = (victim_actor.global_position - attacker.global_position).normalized()
+	attacker.lunge(dir)
+	attacker.lunge(dir)
+	if use_special:
+		_flash_screen(Color(0.8, 0.1, 0.1, 0.22), 0.4)
+		_shake(5.0)
+	await _pause(0.16)
 	for m in victims:
 		var raw: float = (power + d.attack * 0.3) * randf_range(0.9, 1.1) - m.defense * 1.2
 		var dmg := maxi(1, roundi(raw))
@@ -712,6 +1012,10 @@ func _enemy_act(e: Dictionary) -> void:
 			dmg = maxi(1, roundi(dmg * 0.5))
 		m.change_hp(-dmg)
 		_log("%s 受到 %d 伤害。" % [m.char_name, dmg])
+		var actor := _party_actors[_party.find(m)]
+		actor.hurt()
+		_popup(actor.position + Vector2(0, -actor._half_h), str(dmg), COL_DMG, 22)
+		_shake(6.0 if not use_special else 9.0)
 		if use_special and d.special_status != "" and randf() < 0.35:
 			match d.special_status:
 				"burn":
@@ -743,6 +1047,8 @@ func _win() -> void:
 	_phase = Phase.VICTORY
 	_log("战斗胜利！")
 	Audio.play_sfx("victory")
+	_stamp("战 斗 胜 利", COL_GOLD)
+	_flash_screen(Color(1.0, 0.95, 0.75, 0.3), 0.5)
 	var xp_each := 0
 	var gold := 0
 	var essences: Array = []
@@ -762,6 +1068,8 @@ func _lose() -> void:
 	_phase = Phase.DEFEAT
 	_log("队伍溃败……")
 	Audio.play_sfx("defeat")
+	_stamp("溃 败 ……", Color("8ecbff"))
+	_vignette.modulate.a = 0.6
 	_show_result(false, 0, 0, [], [])
 
 
@@ -782,15 +1090,18 @@ func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, event
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(center)
 	var panel := PanelContainer.new()
+	_style_panel(panel)
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
-	box.custom_minimum_size = Vector2(420, 0)
+	box.custom_minimum_size = Vector2(440, 0)
 	panel.add_child(box)
 
 	var title := Label.new()
-	title.text = "战斗胜利！" if victory else "队伍溃败……"
-	title.add_theme_font_size_override("font_size", 22)
+	title.text = "—— 战斗胜利 ——" if victory else "—— 队伍溃败 ——"
+	title.add_theme_font_size_override("font_size", 24)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", COL_GOLD if victory else Color("8ecbff"))
 	box.add_child(title)
 
 	if victory:
@@ -814,8 +1125,7 @@ func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, event
 		box.add_child(_result_label("众人力竭倒下……再睁眼，已回到上次的安歇之地。"))
 		box.add_child(_result_label("（读回最近存档；尚无存档则从新的旅程开始）"))
 
-	var btn := Button.new()
-	btn.text = "继续（回车）" if victory else "回到存档点（回车）"
+	var btn := _mk_btn("继续（回车）" if victory else "回到存档点（回车）", 15)
 	btn.pressed.connect(func() -> void:
 		if not victory:
 			# 战败：读回最近存档（无存档重开新旅程），永不回原地再战
@@ -874,7 +1184,7 @@ func _sync_all() -> void:
 		actor.set_hp(float(m.hp) / m.eff_max_hp())
 		actor.visible = m.hp > 0
 	for e in _enemies:
-		var a: BattleActor = e["actor"]
+		var a: BattleActorScript = e["actor"]
 		a.set_hp(float(e["hp"]) / e["data"].max_hp)
 		a.set_shield(e["shield"], e["data"].shield)
 	if _phase == Phase.COMMAND or _phase == Phase.SPELL_SELECT:

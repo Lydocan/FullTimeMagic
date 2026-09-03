@@ -12,4 +12,5 @@ defense = 1
 weaknesses = [0]
 gold_value = 6
 texture_path = "res://assets/images/monster_rat.png"
+sprite_scale = 2.4
 special_name = "噬咬"

@@ -18,6 +18,7 @@ gold_value = 15
 essence_id = "essence_lightning"
 essence_chance = 0.4
 texture_path = "res://assets/images/monster_wolf.png"
+sprite_scale = 2.2
 attack_power = 13
 special_name = "独眼魔光"
 special_power = 18
