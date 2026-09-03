@@ -424,23 +424,26 @@ func _build_hud() -> void:
 	_hud.add_child(mm)
 	mm.position = Vector2(vw - mm.size.x - 12, 12)
 
+	# 右上信息列：小地图 → 目标提示（与黄三角同色联动）→ 金币/精魄，右缘对齐
+	_objective_label = Label.new()
+	_objective_label.add_theme_font_size_override("font_size", 14)
+	_objective_label.add_theme_color_override("font_color", Color("ffd166"))
+	_objective_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN  # 长文本向左展开，右缘不跑出屏
+	_objective_label.position = Vector2(vw - 12, mm.size.y + 22)
+	_hud.add_child(_objective_label)
+
+	_wealth_label = Label.new()
+	_wealth_label.add_theme_font_size_override("font_size", 13)
+	_wealth_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_wealth_label.position = Vector2(vw - 12, mm.size.y + 46)
+	_hud.add_child(_wealth_label)
+
 	var hint := Label.new()
 	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	hint.position = Vector2(12, get_viewport_rect().size.y - 34)
 	_hud.add_child(hint)
-
-	_objective_label = Label.new()
-	_objective_label.add_theme_font_size_override("font_size", 14)
-	_objective_label.add_theme_color_override("font_color", Color("ffd166"))
-	_objective_label.position = Vector2(12, get_viewport_rect().size.y - 58)
-	_hud.add_child(_objective_label)
-
-	_wealth_label = Label.new()
-	_wealth_label.add_theme_font_size_override("font_size", 13)
-	_wealth_label.position = Vector2(vw - mm.size.x - 12, mm.size.y + 20)
-	_hud.add_child(_wealth_label)
 
 
 ## —— 队员状态块：姓名行 + HP/MP 进度条（条上叠数值） ——
