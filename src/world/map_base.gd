@@ -439,7 +439,7 @@ func _build_hud() -> void:
 	_hud.add_child(_wealth_label)
 
 	var hint := Label.new()
-	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
+	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 系统/关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	hint.position = Vector2(12, get_viewport_rect().size.y - 34)
@@ -916,3 +916,47 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif _menu == null and not _event_running and event.is_action_pressed("inventory"):
 		get_viewport().set_input_as_handled()
 		_open_bag()
+	elif _menu == null and not _event_running and event.is_action_pressed("pause"):
+		get_viewport().set_input_as_handled()
+		_open_system_menu()
+
+
+## —— 系统菜单（Esc 呼出）：继续 / 背包 / 回主菜单 / 退出 ——
+
+func _open_system_menu() -> void:
+	if _menu != null or _event_running:
+		return
+	player.input_enabled = false
+	var box := _menu_base("系统菜单")
+	var note := _menu_message(box)
+	note.add_theme_font_size_override("font_size", 12)
+	note.text = "未存档的进度会丢失。存档请到篝火处。"
+
+	var resume_btn := Button.new()
+	resume_btn.text = "继续旅程"
+	resume_btn.pressed.connect(_close_rest_menu)
+	box.add_child(resume_btn)
+
+	var bag_btn := Button.new()
+	bag_btn.text = "背包（I/Tab）"
+	bag_btn.pressed.connect(func() -> void:
+		_close_rest_menu()
+		_open_bag()
+	)
+	box.add_child(bag_btn)
+
+	var title_btn := Button.new()
+	title_btn.text = "回到主菜单"
+	title_btn.pressed.connect(_return_to_title)
+	box.add_child(title_btn)
+
+	var quit_btn := Button.new()
+	quit_btn.text = "退出游戏"
+	quit_btn.pressed.connect(func() -> void: get_tree().quit())
+	box.add_child(quit_btn)
+
+	_focus_menu()
+
+
+func _return_to_title() -> void:
+	get_tree().change_scene_to_file("res://src/main/main.tscn")

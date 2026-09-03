@@ -44,6 +44,8 @@ func _ready() -> void:
 	ok = retire_ok and ok
 	var eq_ok: bool = await _test_equip_flow()
 	ok = eq_ok and ok
+	var sys_ok: bool = await _test_system_menu()
+	ok = sys_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
 
@@ -83,6 +85,58 @@ func _test_equip_flow() -> bool:
 	GameState.new_game()
 	await get_tree().process_frame
 	return focus_ok and equipped
+
+
+## 系统菜单：Esc 呼出的暂停/退出入口。按钮齐备，关闭后恢复玩家操作。
+func _test_system_menu() -> bool:
+	print("[系统菜单]")
+	GameState.new_game()
+	# 预置序章旗标：出生点触发器直接 early-return，不弹对话
+	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_tutorial_done"]:
+		GameState.flags[f] = true
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout
+	city._open_system_menu()
+	await get_tree().process_frame
+	var texts: Array = []
+	for btn in (city.get("_menu") as Control).find_children("*", "Button", true, false):
+		texts.append((btn as Button).text)
+	var has := func(key: String) -> bool:
+		for t in texts:
+			if String(t).contains(key):
+				return true
+		return false
+	var buttons_ok: bool = has.call("继续旅程") and has.call("背包") \
+			and has.call("回到主菜单") and has.call("退出游戏")
+	if buttons_ok:
+		print("  PASS  系统菜单按钮齐备（%d 项）" % texts.size())
+	else:
+		printerr("  FAIL  系统菜单缺按钮：%s" % [texts])
+	# 从系统菜单转背包：系统菜单关闭、背包打开
+	var bag_btn: Button = null
+	for btn in (city.get("_menu") as Control).find_children("*", "Button", true, false):
+		if (btn as Button).text.contains("背包"):
+			bag_btn = btn
+	bag_btn.pressed.emit()
+	await get_tree().process_frame
+	var bag_ok: bool = city.get("_menu") != null and city.get("_bag_box") != null \
+			and city.get("player").input_enabled == false
+	if bag_ok:
+		print("  PASS  系统菜单转背包（玩家操作保持锁定）")
+	else:
+		printerr("  FAIL  转背包异常（menu=%s bag=%s）" % [city.get("_menu") != null, city.get("_bag_box") != null])
+	city._close_rest_menu()
+	await get_tree().process_frame
+	var resume_ok: bool = city.get("_menu") == null and city.get("player").input_enabled
+	if resume_ok:
+		print("  PASS  关闭菜单后恢复玩家操作")
+	else:
+		printerr("  FAIL  关闭后操作未恢复")
+	city.free()
+	GameState.new_game()
+	await get_tree().process_frame
+	return buttons_ok and bag_ok and resume_ok
 
 
 ## NPC 退场：退场检查挂在 run_event 收尾（共用层），走动触发的事件结束后 NPC 随旗标退场。
