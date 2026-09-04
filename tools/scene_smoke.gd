@@ -46,6 +46,8 @@ func _ready() -> void:
 	ok = eq_ok and ok
 	var sys_ok: bool = await _test_system_menu()
 	ok = sys_ok and ok
+	var il_ok: bool = await _test_interact_lock_and_highlight()
+	ok = il_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
 
@@ -137,6 +139,92 @@ func _test_system_menu() -> bool:
 	GameState.new_game()
 	await get_tree().process_frame
 	return buttons_ok and bag_ok and resume_ok
+
+
+## 交互高亮与移动锁：进交互圈 NPC/篝火描金出「E」徽标；菜单/对话期间人物锁死。
+func _test_interact_lock_and_highlight() -> bool:
+	print("[交互高亮与移动锁]")
+	var ok := true
+	GameState.new_game()
+	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_tutorial_done", "prologue_done"]:
+		GameState.flags[f] = true
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout
+	var player: Node2D = city.get("player")
+	var fire: Area2D = null
+	for child in city.get_children():
+		if child is Area2D and child.has_signal("camp_used"):
+			fire = child
+	if fire == null:
+		printerr("  FAIL  找不到篝火")
+		city.free()
+		return false
+	# 高亮：走近篝火出「E」徽标 + 描金，走远熄灭
+	player.global_position = fire.global_position + Vector2(30, 0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var hl_on: bool = fire.get("_near") == true and fire.get("_mark").visible
+	if hl_on:
+		print("  PASS  走近篝火：高亮 + E 徽标")
+	else:
+		printerr("  FAIL  篝火未高亮")
+		ok = false
+	player.global_position = fire.global_position + Vector2(200, 0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if fire.get("_near") == false:
+		print("  PASS  走远后高亮熄灭")
+	else:
+		printerr("  FAIL  走远后仍高亮")
+		ok = false
+	# 菜单期间移动锁：开营地菜单后按住方向键，人物不得位移
+	player.global_position = fire.global_position + Vector2(30, 0)
+	await get_tree().process_frame
+	city._open_rest_menu()
+	await get_tree().process_frame
+	var x0: float = player.global_position.x
+	Input.action_press("move_left")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var menu_locked: bool = player.global_position.x == x0
+	Input.action_release("move_left")
+	if menu_locked:
+		print("  PASS  营地菜单期间移动锁死")
+	else:
+		printerr("  FAIL  菜单期间人物位移了")
+		ok = false
+	city._close_rest_menu()
+	await get_tree().process_frame
+	# 对话期间移动锁：按 E 触发穆宁雪事件（挂起在第一页台词上）
+	var npc: Area2D = null
+	for node in (city.get("_npc_nodes") as Array):
+		if node.hide_flag == "ch1_mufu_done":
+			npc = node
+	if npc == null:
+		printerr("  FAIL  找不到穆宁雪 NPC")
+		city.free()
+		return false
+	player.global_position = npc.global_position + Vector2(30, 0)
+	npc.interact()
+	await get_tree().process_frame
+	var dialogue_up: bool = city.get("_event_running") and Dialogue.visible
+	var x1: float = player.global_position.x
+	Input.action_press("move_right")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var dialogue_locked: bool = dialogue_up and player.global_position.x == x1
+	Input.action_release("move_right")
+	if dialogue_locked:
+		print("  PASS  对话期间移动锁死（面板可见时禁走）")
+	else:
+		printerr("  FAIL  对话期间移动未锁死（event=%s dialogue=%s）" % [
+			city.get("_event_running"), Dialogue.visible])
+		ok = false
+	city.free()
+	GameState.new_game()
+	await get_tree().process_frame
+	return ok
 
 
 ## NPC 退场：退场检查挂在 run_event 收尾（共用层），走动触发的事件结束后 NPC 随旗标退场。

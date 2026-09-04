@@ -135,15 +135,6 @@ func add_portal(cell: Vector2i, target_scene: String, spawn_cell: Vector2i) -> v
 func add_campfire(cell: Vector2i) -> void:
 	var fire: Area2D = CAMPFIRE_SCRIPT.new()
 	fire.position = _cell_center(cell)
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(40, 40)
-	shape.shape = rect
-	fire.add_child(shape)
-	var sprite := Sprite2D.new()
-	sprite.texture = load("res://assets/images/campfire.png")
-	sprite.position = Vector2(0, -4)
-	fire.add_child(sprite)
 	fire.camp_used.connect(_open_rest_menu)
 	add_child(fire)
 

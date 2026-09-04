@@ -13,8 +13,14 @@ var input_enabled := true
 var _bob_time := 0.0
 
 
+func _ready() -> void:
+	add_to_group("player")  # NPC/篝火的交互高亮按组找玩家
+
+
 func _physics_process(delta: float) -> void:
-	if not input_enabled:
+	# 双保险锁：input_enabled 之外，对话面板可见期间一律禁止走动
+	# （无论锁由谁负责，只要对话在演，人物就不该动）
+	if not input_enabled or Dialogue.visible:
 		velocity = Vector2.ZERO
 		return
 	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
