@@ -65,33 +65,61 @@ func _spell(id: String, spell_name: String, element: int, tier: int, cfg: Dictio
 
 
 func _gen_monsters() -> void:
+	# 数值与 resources/monsters/*.tres 保持同步（2026-09-03 平衡调整：修为产出
+	# 收紧、怪物增厚、技能表制——小怪一技，Boss 多技，元素与自身匹配）
 	_monster({
 		"id": "rat_swarm", "monster_name": "鼠潮", "tier_name": "奴仆级",
-		"max_hp": 26, "speed": 7, "attack": 6, "defense": 1, "shield": 1,
+		"element": -1,
+		"max_hp": 45, "speed": 7, "attack": 9, "defense": 2, "shield": 1,
 		"weaknesses": [GameTypes.Element.FIRE],
-		"xp_value": 8, "gold_value": 6,
-		"texture_path": "res://assets/images/monster_rat.png",
-		"attack_power": 8, "special_name": "噬咬", "special_power": 12, "special_chance": 0.2,
+		"xp_value": 2, "gold_value": 6,
+		"texture_path": "res://assets/images/monster_rat.png", "sprite_scale": 2.4,
+		"attack_power": 11,
+		"skills": [{"name": "撕咬", "power": 14, "chance": 0.25,
+			"target_all": false, "status": "", "status_chance": 0.0}],
 	})
 	_monster({
 		"id": "one_eye_wolf", "monster_name": "独眼魔狼", "tier_name": "战将级",
-		"max_hp": 60, "speed": 10, "attack": 10, "defense": 3, "shield": 2,
+		"element": GameTypes.Element.LIGHTNING,
+		"max_hp": 110, "speed": 10, "attack": 10, "defense": 4, "shield": 2,
 		"weaknesses": [GameTypes.Element.LIGHTNING],
-		"xp_value": 20, "gold_value": 15,
+		"xp_value": 6, "gold_value": 15,
 		"essence_id": "essence_lightning", "essence_chance": 0.4,
-		"texture_path": "res://assets/images/monster_wolf.png",
-		"attack_power": 13, "special_name": "独眼魔光", "special_power": 18,
-		"special_chance": 0.25, "special_status": "paralyze",
+		"texture_path": "res://assets/images/monster_wolf.png", "sprite_scale": 2.2,
+		"attack_power": 14,
+		"skills": [{"name": "独眼魔光", "power": 18, "chance": 0.25,
+			"target_all": false, "status": "paralyze", "status_chance": 0.6}],
 	})
 	_monster({
 		"id": "wolf_alpha", "monster_name": "独眼魔狼王", "tier_name": "统领级",
-		"max_hp": 160, "speed": 11, "attack": 12, "defense": 5, "shield": 3,
+		"element": GameTypes.Element.LIGHTNING,
+		"max_hp": 400, "speed": 11, "attack": 12, "defense": 6, "shield": 3,
 		"weaknesses": [GameTypes.Element.LIGHTNING, GameTypes.Element.FIRE],
-		"xp_value": 60, "gold_value": 60,
+		"xp_value": 25, "gold_value": 60,
 		"essence_id": "essence_lightning", "essence_chance": 1.0,
-		"texture_path": "res://assets/images/monster_wolf.png", "sprite_scale": 1.6,
-		"attack_power": 18, "special_name": "狼王咆哮", "special_power": 20,
-		"special_chance": 0.3, "special_target_all": true, "special_status": "burn",
+		"texture_path": "res://assets/images/monster_wolf.png", "sprite_scale": 2.8,
+		"attack_power": 19,
+		"skills": [
+			{"name": "狼王咆哮", "power": 20, "chance": 0.3,
+				"target_all": true, "status": "burn", "status_chance": 0.5},
+			{"name": "雷霆扑杀", "power": 26, "chance": 0.25,
+				"target_all": false, "status": "", "status_chance": 0.0},
+		],
+	})
+	_monster({
+		"id": "yu_ang", "monster_name": "宇昂", "tier_name": "战将级",
+		"element": GameTypes.Element.FIRE,
+		"max_hp": 380, "speed": 10, "attack": 13, "defense": 6, "shield": 4,
+		"weaknesses": [GameTypes.Element.LIGHTNING],
+		"xp_value": 20, "gold_value": 80,
+		"texture_path": "res://assets/images/char_yuang.png", "sprite_scale": 2.6,
+		"attack_power": 17,
+		"skills": [
+			{"name": "炎爆", "power": 25, "chance": 0.3,
+				"target_all": false, "status": "burn", "status_chance": 0.5},
+			{"name": "连珠火弹", "power": 15, "chance": 0.25,
+				"target_all": true, "status": "", "status_chance": 0.0},
+		],
 	})
 
 

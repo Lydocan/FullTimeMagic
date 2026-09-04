@@ -131,6 +131,7 @@ func eff_defense() -> int:
 ## 获得修为（点亮星子）。返回事件列表：
 ## [{"type":"dust"},{"type":"star","stage":..,"star":..},{"type":"bottleneck"}]
 ## 瓶颈期修为无法继续注入（需先突破）。
+## 星子连线即"脱胎换骨"：当场回满 HP/MP（升阶回血的规则锚点）。
 func gain_xp(element: int, amount: int) -> Array:
 	var events: Array = []
 	if not ranks.has(element) or amount <= 0:
@@ -144,6 +145,7 @@ func gain_xp(element: int, amount: int) -> Array:
 		r["dust"] -= GameTypes.STARDUST_PER_STAR
 		r["star"] += 1
 		events.append({"type": "star", "element": element, "stage": r["stage"], "star": r["star"]})
+		full_restore()
 	if r["star"] >= GameTypes.STARS_PER_STAGE - 1 and r["dust"] >= GameTypes.STARDUST_PER_STAR:
 		r["dust"] = GameTypes.STARDUST_PER_STAR
 		r["bottleneck"] = true
@@ -151,7 +153,7 @@ func gain_xp(element: int, amount: int) -> Array:
 	return events
 
 
-## 突破晋升（需处于瓶颈）。成功后进入下一阶一星。
+## 突破晋升（需处于瓶颈）。成功后进入下一阶一星，气血充盈回满状态。
 func breakthrough(element: int) -> bool:
 	if not is_bottleneck(element):
 		return false
@@ -160,6 +162,7 @@ func breakthrough(element: int) -> bool:
 	r["star"] = 0
 	r["dust"] = 0
 	r["bottleneck"] = false
+	full_restore()
 	return true
 
 

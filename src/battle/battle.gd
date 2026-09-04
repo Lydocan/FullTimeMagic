@@ -986,27 +986,33 @@ func _enemy_act(e: Dictionary) -> void:
 	_phase = Phase.ENEMY
 	await _pause(0.3)
 	var d: MonsterData = e["data"]
-	var use_special: bool = d.special_name != "" and randf() < d.special_chance
-	var power: int = d.special_power if use_special else d.attack_power
-	var skill: String = d.special_name if use_special else "撞击"
-	_log("%s 使用「%s」！" % [d.monster_name, skill])
+	# 技能判定：普攻兜底，技能表逐技掷骰先中先用（小怪一技，Boss 多技）
+	var use_skill := false
+	var skill: Dictionary = {"name": "撞击", "power": d.attack_power, "chance": 1.0,
+			"target_all": false, "status": "", "status_chance": 0.0, "element": d.element}
+	for s in d.skills:
+		if randf() < float(s.get("chance", 0.2)):
+			skill = s
+			use_skill = true
+			break
+	_log("%s 使用「%s」！" % [d.monster_name, skill["name"]])
 	var targets: Array = _alive_members()
 	if targets.is_empty():
 		return
-	var victims: Array = targets if (use_special and d.special_target_all) else [targets.pick_random()]
-	# 攻击演出：扑向首个受害者；特技红光警示 + 重震，压迫感拉满
+	var victims: Array = targets if skill.get("target_all", false) else [targets.pick_random()]
+	# 攻击演出：扑向首个受害者；技能按元素色闪光警示，压迫感拉满
 	var victim: CharacterState = victims[0]
 	var victim_actor := _party_actors[_party.find(victim)]
 	var attacker: BattleActorScript = e["actor"]
 	var dir: Vector2 = (victim_actor.global_position - attacker.global_position).normalized()
 	attacker.lunge(dir)
-	attacker.lunge(dir)
-	if use_special:
-		_flash_screen(Color(0.8, 0.1, 0.1, 0.22), 0.4)
+	if use_skill:
+		var tint: Color = GameTypes.element_color(int(skill.get("element", d.element)))
+		_flash_screen(Color(tint.r, tint.g, tint.b, 0.2), 0.4)
 		_shake(5.0)
 	await _pause(0.16)
 	for m in victims:
-		var raw: float = (power + d.attack * 0.3) * randf_range(0.9, 1.1) - m.defense * 1.2
+		var raw: float = (skill["power"] + d.attack * 0.3) * randf_range(0.9, 1.1) - m.defense * 1.2
 		var dmg := maxi(1, roundi(raw))
 		if m.defending:
 			dmg = maxi(1, roundi(dmg * 0.5))
@@ -1015,9 +1021,10 @@ func _enemy_act(e: Dictionary) -> void:
 		var actor := _party_actors[_party.find(m)]
 		actor.hurt()
 		_popup(actor.position + Vector2(0, -actor._half_h), str(dmg), COL_DMG, 22)
-		_shake(6.0 if not use_special else 9.0)
-		if use_special and d.special_status != "" and randf() < 0.35:
-			match d.special_status:
+		_shake(6.0 if not use_skill else 9.0)
+		var status: String = skill.get("status", "")
+		if status != "" and randf() < float(skill.get("status_chance", 1.0)):
+			match status:
 				"burn":
 					m.burn_turns = 2
 					_log("%s 被点燃！" % m.char_name)

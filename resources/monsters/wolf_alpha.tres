@@ -7,21 +7,32 @@ script = ExtResource("1_qtvah")
 id = "wolf_alpha"
 monster_name = "独眼魔狼王"
 tier_name = "统领级"
-max_hp = 160
+element = 2
+max_hp = 400
 speed = 11
 attack = 12
-defense = 5
+defense = 6
 shield = 3
 weaknesses = [2, 0]
-xp_value = 60
+xp_value = 25
 gold_value = 60
 essence_id = "essence_lightning"
 essence_chance = 1.0
 texture_path = "res://assets/images/monster_wolf.png"
 sprite_scale = 2.8
-attack_power = 18
-special_name = "狼王咆哮"
-special_power = 20
-special_chance = 0.3
-special_target_all = true
-special_status = "burn"
+attack_power = 19
+skills = [{
+"name": "狼王咆哮",
+"power": 20,
+"chance": 0.3,
+"target_all": true,
+"status": "burn",
+"status_chance": 0.5
+}, {
+"name": "雷霆扑杀",
+"power": 26,
+"chance": 0.25,
+"target_all": false,
+"status": "",
+"status_chance": 0.0
+}]

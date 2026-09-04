@@ -7,21 +7,32 @@ script = ExtResource("1_boss")
 id = "yu_ang"
 monster_name = "宇昂"
 tier_name = "战将级"
-max_hp = 260
+element = 0
+max_hp = 380
 speed = 10
-attack = 11
-defense = 5
+attack = 13
+defense = 6
 shield = 4
 weaknesses = [2]
-xp_value = 50
+xp_value = 20
 gold_value = 80
 essence_id = ""
 essence_chance = 0.0
 texture_path = "res://assets/images/char_yuang.png"
 sprite_scale = 2.6
-attack_power = 16
-special_name = "炎爆"
-special_power = 22
-special_chance = 0.3
-special_target_all = false
-special_status = "burn"
+attack_power = 17
+skills = [{
+"name": "炎爆",
+"power": 25,
+"chance": 0.3,
+"target_all": false,
+"status": "burn",
+"status_chance": 0.5
+}, {
+"name": "连珠火弹",
+"power": 15,
+"chance": 0.25,
+"target_all": true,
+"status": "",
+"status_chance": 0.0
+}]

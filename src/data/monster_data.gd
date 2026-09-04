@@ -6,6 +6,8 @@ extends Resource
 @export var monster_name: String = ""
 ## 妖魔等级：奴仆级 / 战将级 / 统领级 / 君主级（对照玩家位阶，见 docs/world.md）。
 @export var tier_name: String = "奴仆级"
+## 元素归属（GameTypes.Element；-1 = 野性无属）。技能名与施法特效配色用。
+@export var element: int = -1
 @export var max_hp: int = 30
 @export var speed: int = 5
 @export var attack: int = 6
@@ -22,11 +24,9 @@ extends Resource
 @export_range(0.0, 1.0) var essence_chance: float = 0.0
 @export var texture_path: String = ""
 @export var sprite_scale: float = 1.0
-## 敌方普攻与特殊技能。
+## 普攻威力（技能未命中时的兜底攻击「撞击」）。
 @export var attack_power: int = 8
-@export var special_name: String = ""
-@export var special_power: int = 12
-@export_range(0.0, 1.0) var special_chance: float = 0.2
-@export var special_target_all: bool = false
-## 特殊技能附加状态："burn" / "paralyze"。
-@export var special_status: String = ""
+## 技能表，与自身元素匹配：小怪一技，Boss/关键对手多技。每项：
+## {"name", "power", "chance"(发动概率，逐技掷骰先中先用), "target_all",
+##  "status"("burn"/"paralyze"/""), "status_chance"(命中后附加状态的概率)}
+@export var skills: Array = []
