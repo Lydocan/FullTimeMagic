@@ -73,7 +73,7 @@ func _gen_monsters() -> void:
 		"max_hp": 45, "speed": 7, "attack": 9, "defense": 2, "shield": 1,
 		"weaknesses": [GameTypes.Element.FIRE],
 		"xp_value": 2, "gold_value": 6,
-		"texture_path": "res://assets/images/monster_rat.png", "sprite_scale": 2.4,
+		"texture_path": "res://assets/images/monster_rat.png", "sprite_scale": 2.6,
 		"attack_power": 11,
 		"skills": [{"name": "撕咬", "power": 14, "chance": 0.25,
 			"target_all": false, "status": "", "status_chance": 0.0}],
@@ -97,7 +97,9 @@ func _gen_monsters() -> void:
 		"weaknesses": [GameTypes.Element.LIGHTNING, GameTypes.Element.FIRE],
 		"xp_value": 25, "gold_value": 60,
 		"essence_id": "essence_lightning", "essence_chance": 1.0,
-		"texture_path": "res://assets/images/monster_wolf.png", "sprite_scale": 2.8,
+		# 狼王独占贴图（双角+异变赤纹）：统领级不能与战将级共用一张脸，
+		# 2.6 倍下的 132x86 画布 ≈ 屏上 343x224，体积压过在场所有单位
+		"texture_path": "res://assets/images/monster_wolf_king.png", "sprite_scale": 2.6,
 		"attack_power": 19,
 		"skills": [
 			{"name": "狼王咆哮", "power": 20, "chance": 0.3,

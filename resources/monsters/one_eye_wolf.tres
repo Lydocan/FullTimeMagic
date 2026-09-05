@@ -22,10 +22,10 @@ texture_path = "res://assets/images/monster_wolf.png"
 sprite_scale = 2.2
 attack_power = 14
 skills = [{
+"chance": 0.25,
 "name": "独眼魔光",
 "power": 18,
-"chance": 0.25,
-"target_all": false,
 "status": "paralyze",
-"status_chance": 0.6
+"status_chance": 0.6,
+"target_all": false
 }]

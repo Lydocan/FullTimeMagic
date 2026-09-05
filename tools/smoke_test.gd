@@ -33,6 +33,17 @@ func _check(cond: bool, label: String) -> void:
 
 func _ready() -> void:
 	print("=== FullTimeMagic M2 冒烟测试 ===")
+	# 护栏先行：被测脚本必须能编译——battle.gd 一旦解析失败，下方战斗
+	# 用例会静默中止（协程在报错点断掉），套件却仍报"全部通过"（踩坑 15）。
+	# 注意 Script.has_method 对 GDScript 恒 false，必须实例级探测。
+	var battle_ok := false
+	var battle_script: Script = load("res://src/battle/battle.gd")
+	if battle_script != null:
+		var probe: Node = battle_script.new()
+		battle_ok = probe != null and probe.has_method("run_simulation")
+		if probe != null:
+			probe.free()
+	_check(battle_ok, "被测脚本可加载（battle.gd 编译通过）")
 	_test_rank_progression()
 	_test_breakthrough()
 	await _test_battle_simulation()

@@ -166,6 +166,24 @@ func _sfx_tracks() -> void:
 	_tone(b, 0.0, 0.06, 0.0, 0.3, "noise")
 	_save(_stream(b), "break.wav")
 
+	# 元素法术（与战斗演出配套：雷=天降闪电、火=火球、冰=冰棱）
+	b = _buf(0.5)
+	_tone(b, 0.0, 0.06, 0.0, 0.5, "noise")           # 炸裂
+	_sweep(b, 0.03, 0.35, 320.0, 55.0, 0.4, "saw")   # 低频轰鸣余震
+	_tone(b, 0.1, 0.1, 0.0, 0.22, "noise")
+	_save(_stream(b), "spell_thunder.wav")
+
+	b = _buf(0.45)
+	_sweep(b, 0.0, 0.2, 180.0, 820.0, 0.24, "noise") # 火球呼啸
+	_tone(b, 0.2, 0.22, 90.0, 0.4, "square")         # 爆裂
+	_tone(b, 0.22, 0.16, 0.0, 0.28, "noise")
+	_save(_stream(b), "spell_fire.wav")
+
+	b = _buf(0.4)
+	_melody(b, [108, 112, 115], 0.06, 1, "sine", 0.28)  # 冰晶高频脆响
+	_tone(b, 0.18, 0.14, 0.0, 0.12, "noise")
+	_save(_stream(b), "spell_ice.wav")
+
 	b = _buf(0.9)
 	_melody(b, [72, 76, 79, 84], 0.14, 2, "square", 0.22)
 	_tone(b, 0.56, 0.3, _f(84), 0.2, "square")

@@ -457,6 +457,200 @@ func _stamp(text: String, color: Color) -> void:
 	tw.chain().tween_callback(lb.queue_free)
 
 
+## —— 元素法术演出 ——
+## 每段命中对应一道特效：雷=天降闪电、火=火球抛射爆裂、冰=冰棱突起、
+## 其余=白刃横扫。约定见 design.md「战斗演出基调」：出手必须可读。
+## 特效在命中瞬间返回，余韵（消隐、火花）自行播放不阻塞结算。
+
+## 无头冒烟置真：跳过特效体只留节拍，回归测试时长保持稳定。
+var _fx_mute := false
+
+## 一波演出：多目标错峰 0.1s 依次落下（落雷扫过全体的观感）。
+## 特效全部用 tween 排程（不用协程），本函数只在末发命中点 await 一次，
+## 结算伤害与此刻对齐；余韵（消隐、火星）自行播放不阻塞。
+func _cast_fx(element: int, from_pos: Vector2, to_points: Array) -> void:
+	if _fx_mute:
+		await _pause(0.05)
+		return
+	if to_points.is_empty():
+		return
+	var last := 0.1 * (to_points.size() - 1)
+	for i in to_points.size():
+		match element:
+			GameTypes.Element.LIGHTNING:
+				_spawn_bolt(to_points[i], i * 0.1)
+			GameTypes.Element.FIRE:
+				_spawn_fireball(from_pos, to_points[i], i * 0.1)
+			GameTypes.Element.ICE:
+				_spawn_ice(to_points[i], i * 0.1)
+			_:
+				_spawn_slash(to_points[i], i * 0.1)
+	# 火球飞行最久（0.2s）：末发落点炸开即返回
+	await _pause(last + (0.24 if element == GameTypes.Element.FIRE else 0.12))
+
+
+## 径向光斑贴图（爆闪/火球通用）：白核向元素色透明过渡。
+func _glow_tex(color: Color) -> GradientTexture2D:
+	var g := Gradient.new()
+	g.set_offset(0, 0.0)
+	g.set_color(0, Color(1, 1, 1, 0.95))
+	g.set_offset(1, 1.0)
+	g.set_color(1, Color(color.r, color.g, color.b, 0.0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	tex.width = 64
+	tex.height = 64
+	return tex
+
+
+## 爆闪：光斑在 pos 炸开（放大 + 消隐），雷击/火球/冰棱的落点反馈。
+func _fx_burst(pos: Vector2, color: Color, size: float) -> void:
+	var s := Sprite2D.new()
+	s.texture = _glow_tex(color)
+	s.position = pos
+	s.scale = Vector2.ONE * size * 0.4
+	s.z_index = 40
+	add_child(s)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(s, "scale", Vector2.ONE * size, 0.2).set_ease(Tween.EASE_OUT)
+	tw.tween_property(s, "modulate:a", 0.0, 0.24)
+	tw.chain().tween_callback(s.queue_free)
+
+
+## 雷：闪电自天顶而降——9 段折线 + 逐点抖动，终点锁定目标。
+## 辉光层 + 白核双层描线；到点瞬间显形、雷鸣、震屏、爆闪。
+func _spawn_bolt(to_pos: Vector2, delay: float) -> void:
+	var start := Vector2(to_pos.x + randf_range(-52, 52), -36)
+	var pts := PackedVector2Array([start])
+	for i in range(1, 10):
+		var t := float(i) / 9.0
+		var jitter := 0.0 if i == 9 else randf_range(-17.0, 17.0)
+		pts.append(Vector2(lerpf(start.x, to_pos.x, t) + jitter, lerpf(start.y, to_pos.y, t)))
+	for cfg in [[9.0, Color(0.31, 0.8, 0.88, 0.5)], [3.2, Color(0.95, 0.99, 1.0, 0.95)]]:
+		var line := Line2D.new()
+		line.points = pts
+		line.width = cfg[0]
+		line.default_color = cfg[1]
+		line.joint_mode = Line2D.LINE_JOINT_ROUND
+		line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+		line.end_cap_mode = Line2D.LINE_CAP_ROUND
+		line.z_index = 40
+		line.modulate.a = 0.0
+		add_child(line)
+		var tw := create_tween()
+		tw.tween_interval(delay)
+		tw.tween_property(line, "modulate:a", 1.0, 0.03)
+		tw.tween_interval(0.06)
+		tw.tween_property(line, "modulate:a", 0.0, 0.22)
+		tw.tween_callback(line.queue_free)
+	var impact := create_tween()
+	impact.tween_interval(delay + 0.04)
+	impact.tween_callback(func() -> void: Audio.play_sfx("spell_thunder"))
+	impact.tween_callback(func() -> void: _fx_burst(to_pos, Color(0.62, 0.9, 1.0), 1.5))
+	impact.tween_callback(func() -> void: _shake(8.0))
+
+
+## 火：火球自施法者抛出（二次贝塞尔弧线），落点爆裂 + 火星四溅。
+func _spawn_fireball(from_pos: Vector2, to_pos: Vector2, delay: float) -> void:
+	var ball := Sprite2D.new()
+	ball.texture = _glow_tex(Color(1.0, 0.52, 0.12))
+	ball.position = from_pos + Vector2(0, -18)
+	ball.scale = Vector2(0.55, 0.55)
+	ball.z_index = 40
+	add_child(ball)
+	var a := ball.position
+	var m := (from_pos + to_pos) * 0.5 + Vector2(0, -64)
+	var b := to_pos
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(func() -> void: Audio.play_sfx("spell_fire"))
+	tw.tween_method(_set_bezier.bind(a, m, b, ball), 0.0, 1.0, 0.2)
+	tw.tween_callback(func() -> void: _explode_fireball(ball, to_pos))
+
+
+## 二次贝塞尔插值：火球沿弧线飞行（bind 携带端点与球体）。
+func _set_bezier(t: float, a: Vector2, m: Vector2, b: Vector2, ball: Sprite2D) -> void:
+	ball.position = a.lerp(m, t).lerp(m.lerp(b, t), t)
+
+
+## 火球落点：爆闪 + 震屏 + 六道火星向外飞散。
+func _explode_fireball(ball: Sprite2D, to_pos: Vector2) -> void:
+	ball.queue_free()
+	_fx_burst(to_pos, Color(1.0, 0.6, 0.2), 1.7)
+	_shake(6.0)
+	for i in 6:
+		var dir := Vector2.RIGHT.rotated(TAU * i / 6.0 + randf_range(-0.3, 0.3))
+		var spark := Line2D.new()
+		spark.points = PackedVector2Array([to_pos, to_pos + dir * randf_range(16.0, 26.0)])
+		spark.width = 2.0
+		spark.default_color = Color(1.0, 0.68, 0.3, 0.9)
+		spark.z_index = 40
+		add_child(spark)
+		var stw := create_tween()
+		stw.set_parallel(true)
+		stw.tween_property(spark, "position", dir * 26.0, 0.26).set_ease(Tween.EASE_OUT)
+		stw.tween_property(spark, "modulate:a", 0.0, 0.26)
+		stw.chain().tween_callback(spark.queue_free)
+
+
+## 冰：三根冰棱自目标脚下错峰突起（三角形 Polygon2D），碎冰光斑收尾。
+func _spawn_ice(to_pos: Vector2, delay: float) -> void:
+	var ground := to_pos + Vector2(0, 24)
+	var sfx := create_tween()
+	sfx.tween_interval(delay)
+	sfx.tween_callback(func() -> void: Audio.play_sfx("spell_ice"))
+	for i in 3:
+		var spike := Polygon2D.new()
+		var h := randf_range(20.0, 30.0)
+		spike.polygon = PackedVector2Array([
+			Vector2(-5, 0), Vector2(5, 0), Vector2(0, -h),
+		])
+		spike.color = Color(0.75, 0.91, 1.0, 0.92)
+		spike.position = ground + Vector2((i - 1) * 15.0 + randf_range(-3.0, 3.0), 0)
+		spike.z_index = 40
+		spike.scale = Vector2(1.0, 0.1)
+		spike.modulate.a = 0.0
+		add_child(spike)
+		var tw := create_tween()
+		tw.tween_interval(delay + 0.04 * i)
+		tw.set_parallel(true)
+		tw.tween_property(spike, "scale:y", 1.0, 0.12).set_ease(Tween.EASE_OUT)
+		tw.tween_property(spike, "modulate:a", 0.92, 0.05)
+		tw.chain().tween_interval(0.1)
+		tw.chain().tween_property(spike, "modulate:a", 0.0, 0.22)
+		tw.chain().tween_callback(spike.queue_free)
+	var burst := create_tween()
+	burst.tween_interval(delay + 0.08)
+	burst.tween_callback(func() -> void: _fx_burst(ground + Vector2(0, -14), Color(0.7, 0.9, 1.0), 1.1))
+
+
+## 兜底：白刃弧光横掠目标（无属/物理感）。
+func _spawn_slash(to_pos: Vector2, delay: float) -> void:
+	var line := Line2D.new()
+	var pts := PackedVector2Array()
+	for i in 13:
+		var ang := PI * (0.12 + 0.76 * i / 12.0)
+		pts.append(to_pos + Vector2(cos(ang), -sin(ang)) * Vector2(36, 24))
+	line.points = pts
+	line.width = 3.0
+	line.default_color = Color(1, 1, 1, 0.9)
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.z_index = 40
+	line.modulate.a = 0.0
+	add_child(line)
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.set_parallel(true)
+	tw.tween_property(line, "modulate:a", 0.9, 0.05)
+	tw.tween_property(line, "position:x", 10.0, 0.14)
+	tw.chain().tween_property(line, "modulate:a", 0.0, 0.16)
+	tw.chain().tween_callback(line.queue_free)
+
+
 ## —— 回合流转 ——
 
 func _start_round() -> void:
@@ -916,9 +1110,14 @@ func _resolve_player_spell() -> void:
 	if boost > 0:
 		_flash_screen(Color(0.66, 0.45, 1.0, 0.22), 0.3)
 	var targets: Array = _alive_enemies() if s.target_all else [_enemies[_target_entry]]
+	var from_pos := caster.position + Vector2(0, -24)
 	for h in hits:
-		for e in targets:
-			if e["hp"] > 0:
+		var alive := targets.filter(func(e): return e["hp"] > 0)
+		if not alive.is_empty():
+			# 每段命中一道元素演出：全体目标错峰落下，命中瞬间结算伤害
+			await _cast_fx(s.element, from_pos, alive.map(func(e) -> Vector2:
+				return e["actor"].position - Vector2(0, e["actor"]._half_h * 0.5)))
+			for e in alive:
 				_hit_enemy(m, e, s)
 		_sync_all()
 		await _pause(0.22)
@@ -1000,16 +1199,19 @@ func _enemy_act(e: Dictionary) -> void:
 	if targets.is_empty():
 		return
 	var victims: Array = targets if skill.get("target_all", false) else [targets.pick_random()]
-	# 攻击演出：扑向首个受害者；技能按元素色闪光警示，压迫感拉满
+	# 攻击演出：扑向首个受害者；技能按元素放出真演出（狼王咆哮=雷暴、炎爆=火球……）
 	var victim: CharacterState = victims[0]
 	var victim_actor := _party_actors[_party.find(victim)]
 	var attacker: BattleActorScript = e["actor"]
 	var dir: Vector2 = (victim_actor.global_position - attacker.global_position).normalized()
 	attacker.lunge(dir)
 	if use_skill:
-		var tint: Color = GameTypes.element_color(int(skill.get("element", d.element)))
-		_flash_screen(Color(tint.r, tint.g, tint.b, 0.2), 0.4)
-		_shake(5.0)
+		var el: int = int(skill.get("element", d.element))
+		var victim_points: Array = []
+		for v in victims:
+			var a: BattleActorScript = _party_actors[_party.find(v)]
+			victim_points.append(a.position - Vector2(0, a._half_h * 0.5))
+		await _cast_fx(el, attacker.position + Vector2(0, -attacker._half_h * 0.6), victim_points)
 	await _pause(0.16)
 	for m in victims:
 		var raw: float = (skill["power"] + d.attack * 0.3) * randf_range(0.9, 1.1) - m.defense * 1.2
@@ -1211,6 +1413,7 @@ func _pause(seconds: float) -> void:
 ## —— 冒烟测试入口：跳过 UI 等待，直接驱动战斗逻辑直到结束 ——
 
 func run_simulation() -> Dictionary:
+	_fx_mute = true  # 无头模拟跳过演出体，只留节拍
 	var guard := 0
 	var actions := 0  # 玩家出招次数（≈回合数，供平衡区间验收）
 	while _phase != Phase.VICTORY and _phase != Phase.DEFEAT and guard < 800:

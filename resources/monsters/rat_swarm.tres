@@ -6,23 +6,20 @@
 script = ExtResource("1_7osbs")
 id = "rat_swarm"
 monster_name = "鼠潮"
-tier_name = "奴仆级"
-element = -1
 max_hp = 45
 speed = 7
 attack = 9
-defense = 2
 weaknesses = [0]
 xp_value = 2
 gold_value = 6
 texture_path = "res://assets/images/monster_rat.png"
-sprite_scale = 2.4
+sprite_scale = 2.6
 attack_power = 11
 skills = [{
+"chance": 0.25,
 "name": "撕咬",
 "power": 14,
-"chance": 0.25,
-"target_all": false,
 "status": "",
-"status_chance": 0.0
+"status_chance": 0.0,
+"target_all": false
 }]

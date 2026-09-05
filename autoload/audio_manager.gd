@@ -26,6 +26,9 @@ const SFX := {
 	"breakthrough": "res://assets/audio/breakthrough.wav",
 	"coin": "res://assets/audio/coin.wav",
 	"star": "res://assets/audio/star.wav",
+	"spell_thunder": "res://assets/audio/spell_thunder.wav",
+	"spell_fire": "res://assets/audio/spell_fire.wav",
+	"spell_ice": "res://assets/audio/spell_ice.wav",
 }
 const SFX_CHANNELS := 6
 

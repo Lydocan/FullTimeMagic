@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="MonsterData" format=3]
 
-[ext_resource type="Script" path="res://src/data/monster_data.gd" id="1_boss"]
+[ext_resource type="Script" path="res://src/data/monster_data.gd" id="1_foq60"]
 
 [resource]
-script = ExtResource("1_boss")
+script = ExtResource("1_foq60")
 id = "yu_ang"
 monster_name = "宇昂"
 tier_name = "战将级"
@@ -16,23 +16,21 @@ shield = 4
 weaknesses = [2]
 xp_value = 20
 gold_value = 80
-essence_id = ""
-essence_chance = 0.0
 texture_path = "res://assets/images/char_yuang.png"
 sprite_scale = 2.6
 attack_power = 17
 skills = [{
+"chance": 0.3,
 "name": "炎爆",
 "power": 25,
-"chance": 0.3,
-"target_all": false,
 "status": "burn",
-"status_chance": 0.5
+"status_chance": 0.5,
+"target_all": false
 }, {
+"chance": 0.25,
 "name": "连珠火弹",
 "power": 15,
-"chance": 0.25,
-"target_all": true,
 "status": "",
-"status_chance": 0.0
+"status_chance": 0.0,
+"target_all": true
 }]
