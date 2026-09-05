@@ -72,7 +72,7 @@ func setup_triggers() -> void:
 	add_npc(Vector2i(13, 6), "res://assets/images/char_yuang.png",
 			"宇昂", "duel_done",
 			func() -> void: await Story.school_gate(self))
-	# 杂货铺：消耗品与装备（经济闭环）
+	# 杂货铺：消耗品与装备（经济闭环）+ 衣装（衣柜系统，10/50/100/1000 四档）
 	add_merchant(Vector2i(9, 18), "res://assets/images/char_merchant.png",
 			"杂货商·老周", [
 				{"kind": "item", "id": "yuelu"},
@@ -81,6 +81,18 @@ func setup_triggers() -> void:
 				{"kind": "equip", "id": "leiwen_zhang"},
 				{"kind": "equip", "id": "yuebai_pao"},
 				{"kind": "equip", "id": "lansui_zhui"},
+				{"kind": "clothing", "id": "cloth_shop_10_hat"},
+				{"kind": "clothing", "id": "cloth_shop_10_top"},
+				{"kind": "clothing", "id": "cloth_shop_10_pants"},
+				{"kind": "clothing", "id": "cloth_shop_50_hat"},
+				{"kind": "clothing", "id": "cloth_shop_50_top"},
+				{"kind": "clothing", "id": "cloth_shop_50_pants"},
+				{"kind": "clothing", "id": "cloth_shop_100_hat"},
+				{"kind": "clothing", "id": "cloth_shop_100_top"},
+				{"kind": "clothing", "id": "cloth_shop_100_pants"},
+				{"kind": "clothing", "id": "cloth_shop_1000_hat"},
+				{"kind": "clothing", "id": "cloth_shop_1000_top"},
+				{"kind": "clothing", "id": "cloth_shop_1000_pants"},
 			])
 
 

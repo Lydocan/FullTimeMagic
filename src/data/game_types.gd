@@ -38,6 +38,19 @@ const STAGE_NAMES := ["初阶", "中阶", "高阶", "超阶"]
 const STAR_NAMES := ["一星", "二星", "三星"]
 const MONSTER_TIER_NAMES := ["奴仆级", "战将级", "统领级", "君主级"]
 
+## 衣柜部位名（ClothingData.slot → 显示名）。
+const CLOTHING_SLOT_NAMES := {"hat": "帽子", "top": "上衣", "pants": "裤子"}
+
+## 华丽度称号阶梯——参考战力体系称呼（奴仆级化用为初始的「布衣级」，
+## 其余对齐妖魔等阶：战将级/统领级/君主级）。取满足的最高档。
+const FASHION_TITLES := [
+	{"min": 0, "name": "布衣级"},
+	{"min": 10, "name": "新锐级"},
+	{"min": 50, "name": "战将级"},
+	{"min": 100, "name": "统领级"},
+	{"min": 1000, "name": "君主级"},
+]
+
 
 static func element_name(element: int) -> String:
 	return ELEMENT_NAMES.get(element, "?")
@@ -53,6 +66,19 @@ static func stage_name(stage: int) -> String:
 
 static func monster_tier_name(tier: int) -> String:
 	return MONSTER_TIER_NAMES[clampi(tier, 0, MONSTER_TIER_NAMES.size() - 1)]
+
+
+static func clothing_slot_name(slot: String) -> String:
+	return CLOTHING_SLOT_NAMES.get(slot, slot)
+
+
+## 华丽度对应的时尚称号（取满足门槛的最高档）。
+static func fashion_title(glamour: int) -> String:
+	var name := FASHION_TITLES[0]["name"]
+	for entry in FASHION_TITLES:
+		if glamour >= int(entry["min"]):
+			name = entry["name"]
+	return name
 
 
 static func star_name(star: int) -> String:

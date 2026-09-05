@@ -38,14 +38,23 @@ func _ready() -> void:
 	player.global_position = city._cell_center(Vector2i(9, 19)) + Vector2(26, 0)  # 商人旁
 	await _wait(0.5)
 	await _snap("02_bo_city_merchant_glow.png")
-	# —— 背包华丽化验收 ——
+	# —— 背包华丽化验收（消耗品/装备/衣装齐全）——
 	GameState.add_item("yuelu", 3)
 	GameState.add_item("mojingjie", 2)
 	GameState.add_item("fuhuo_yumao", 1)
 	GameState.add_equip("leiwen_zhang")
+	GameState.party[0].equips["armor"] = "yuebai_pao"  # 已穿戴一件，展示成员装备区
+	GameState.add_clothing("cloth_shop_100_hat")
+	GameState.add_clothing("cloth_shop_1000_top")
+	GameState.add_clothing("cloth_shop_50_pants")
 	city._open_bag()
 	await _wait(0.4)
 	await _snap("10_bag_ornate.png")
+	city._close_rest_menu()
+	# —— 衣柜验收：华丽度与称号 ——
+	city._open_wardrobe()
+	await _wait(0.4)
+	await _snap("11_wardrobe.png")
 	city._close_rest_menu()
 	city.free()
 	await _scene_frame()

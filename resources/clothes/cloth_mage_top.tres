@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ClothingData" format=3]
+
+[ext_resource type="Script" path="res://src/data/clothing_data.gd" id="1_21svv"]
+
+[resource]
+script = ExtResource("1_21svv")
+id = "cloth_mage_top"
+clothing_name = "法师长袍"

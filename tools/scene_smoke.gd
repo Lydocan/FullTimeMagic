@@ -52,8 +52,46 @@ func _ready() -> void:
 	ok = bt_ok and ok
 	var me_ok: bool = await _test_menu_during_entry()
 	ok = me_ok and ok
+	var wd_ok: bool = _test_wardrobe()
+	ok = wd_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
+
+
+## 衣柜：初始三套 0 华丽度；换装；购入衣装累计华丽度并晋升称号；
+## 重复入手忽略。
+func _test_wardrobe() -> bool:
+	print("[衣柜]")
+	var ok := true
+	GameState.new_game()
+	if GameState.owned_clothes.size() == 9 and GameState.glamour_total() == 0 \
+			and GameState.fashion_title() == "布衣级":
+		print("  PASS  初始三套 9 件全 0 华丽度，称号布衣级")
+	else:
+		printerr("  FAIL  初始衣柜异常（%d 件，华丽度 %d，称号 %s）" % [
+			GameState.owned_clothes.size(), GameState.glamour_total(), GameState.fashion_title()])
+		ok = false
+	if GameState.wear_clothing("hat", "cloth_knight_hat") \
+			and GameState.worn_clothes["hat"] == "cloth_knight_hat":
+		print("  PASS  衣柜换装（帽子 → 骑士头盔）")
+	else:
+		printerr("  FAIL  换装失败")
+		ok = false
+	GameState.gold += 100
+	if GameState.try_spend(100):
+		GameState.add_clothing("cloth_shop_100_hat")
+	var g: int = GameState.glamour_total()
+	if g == 100 and GameState.fashion_title() == "统领级":
+		print("  PASS  华丽度 100 → 称号统领级")
+	else:
+		printerr("  FAIL  华丽度 %d，称号 %s" % [g, GameState.fashion_title()])
+		ok = false
+	if not GameState.add_clothing("cloth_shop_100_hat"):
+		print("  PASS  重复衣装不重复入手")
+	else:
+		printerr("  FAIL  重复衣装被重复计入")
+		ok = false
+	return ok
 
 
 ## 入场窗口内开菜单，入场收尾不得把人物解锁（曾致菜单中人物仍可行走、

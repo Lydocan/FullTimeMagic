@@ -10,6 +10,7 @@ const MONSTER_DIR := "res://resources/monsters/"
 func _initialize() -> void:
 	_gen_spells()
 	_gen_monsters()
+	_gen_clothes()
 	quit(0)
 
 
@@ -149,3 +150,48 @@ func _monster(cfg: Dictionary) -> void:
 		m.set(key, cfg[key])
 	m.tier_name = GameTypes.monster_tier_name(m.tier)  # 显示名由等阶唯一决定
 	_save(m, MONSTER_DIR + cfg["id"] + ".tres")
+
+
+const CLOTHES_DIR := "res://resources/clothes/"
+
+
+## 衣装：初始三套（骑士/魔法师/剑士，各帽子/上衣/裤子，全部 0 华丽度）+
+## 商店四档价位 10/50/100/1000（华丽度与售价对应）。纯外观，不加属性。
+func _gen_clothes() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CLOTHES_DIR))
+	var starters := [
+		# 骑士装
+		{"id": "cloth_knight_hat", "name": "骑士头盔", "slot": "hat"},
+		{"id": "cloth_knight_top", "name": "骑士胸甲", "slot": "top"},
+		{"id": "cloth_knight_pants", "name": "骑士护腿", "slot": "pants"},
+		# 魔法师套装
+		{"id": "cloth_mage_hat", "name": "法师尖帽", "slot": "hat"},
+		{"id": "cloth_mage_top", "name": "法师长袍", "slot": "top"},
+		{"id": "cloth_mage_pants", "name": "法师束裤", "slot": "pants"},
+		# 剑士套装
+		{"id": "cloth_sword_hat", "name": "剑士头巾", "slot": "hat"},
+		{"id": "cloth_sword_top", "name": "剑士劲装", "slot": "top"},
+		{"id": "cloth_sword_pants", "name": "剑士束腿", "slot": "pants"},
+	]
+	for c in starters:
+		_clothing({"id": c["id"], "clothing_name": c["name"], "slot": c["slot"],
+				"glamour": 0, "price": 0})
+	var shop_tiers := [
+		{"glamour": 10, "price": 10, "names": ["旅人草帽", "旅人布衣", "旅人长裤"]},
+		{"glamour": 50, "price": 50, "names": ["猎人风帽", "猎人皮衣", "猎人长裤"]},
+		{"glamour": 100, "price": 100, "names": ["贵族礼帽", "贵族华服", "贵族礼裤"]},
+		{"glamour": 1000, "price": 1000, "names": ["君王冠冕", "君王华服", "君王护胫"]},
+	]
+	var slots := ["hat", "top", "pants"]
+	for tier in shop_tiers:
+		for i in 3:
+			_clothing({"id": "cloth_shop_%d_%s" % [tier["price"], slots[i]],
+					"clothing_name": tier["names"][i], "slot": slots[i],
+					"glamour": tier["glamour"], "price": tier["price"]})
+
+
+func _clothing(cfg: Dictionary) -> void:
+	var c := ClothingData.new()
+	for key in cfg:
+		c.set(key, cfg[key])
+	_save(c, CLOTHES_DIR + cfg["id"] + ".tres")

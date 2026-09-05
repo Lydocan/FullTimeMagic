@@ -22,6 +22,8 @@ func make_save_data() -> Dictionary:
 		"essences": GameState.essences,
 		"items": GameState.items,
 		"equip_bag": GameState.equip_bag,
+		"owned_clothes": GameState.owned_clothes,
+		"worn_clothes": GameState.worn_clothes,
 		"flags": GameState.flags,
 		"party": [],
 		"return_position": [GameState.return_position.x, GameState.return_position.y],
@@ -53,6 +55,15 @@ func apply_save_data(d: Dictionary) -> bool:
 	GameState.equip_bag = {}
 	for key in d.get("equip_bag", {}):
 		GameState.equip_bag[str(key)] = int(d["equip_bag"][key])
+	GameState.owned_clothes = []
+	GameState.worn_clothes = {}
+	if d.has("owned_clothes"):
+		for clothing_id in d.get("owned_clothes", []):
+			GameState.owned_clothes.append(str(clothing_id))
+		for slot in d.get("worn_clothes", {}):
+			GameState.worn_clothes[str(slot)] = str(d["worn_clothes"][slot])
+	else:
+		GameState._init_wardrobe()  # 旧存档无衣柜字段：补发初始三套
 	GameState.flags = {}
 	for key in d.get("flags", {}):
 		GameState.flags[str(key)] = bool(d["flags"][key])

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ClothingData" format=3]
+
+[ext_resource type="Script" path="res://src/data/clothing_data.gd" id="1_i3whq"]
+
+[resource]
+script = ExtResource("1_i3whq")
+id = "cloth_shop_10_pants"
+clothing_name = "旅人长裤"
+slot = "pants"
+glamour = 10
+price = 10

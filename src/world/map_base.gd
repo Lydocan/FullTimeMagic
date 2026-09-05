@@ -1017,6 +1017,13 @@ func _refresh_shop() -> void:
 			btn.text = "%s · %s —— %d 金币（持有 %d）" % [
 				item.item_name, item.effect_text(), item.price, GameState.items.get(w["id"], 0)]
 			btn.pressed.connect(_buy_ware.bind(w))
+		elif w["kind"] == "clothing":
+			var c: ClothingData = GameData.load_clothing(w["id"])
+			var owned: bool = GameState.is_clothing_owned(w["id"])
+			btn.text = "%s（%s · 华丽度 +%d）—— %d 金币%s" % [
+				c.clothing_name, c.slot_name(), c.glamour, c.price, "（已拥有）" if owned else ""]
+			btn.disabled = owned
+			btn.pressed.connect(_buy_ware.bind(w))
 		else:
 			var eq: EquipData = GameData.load_equip(w["id"])
 			btn.text = "%s（%s）· %s —— %d 金币" % [
@@ -1026,10 +1033,92 @@ func _refresh_shop() -> void:
 		if first:
 			btn.grab_focus()
 			first = false
+	var wardrobe_btn := Button.new()
+	wardrobe_btn.text = "衣柜 · 更换衣装"
+	wardrobe_btn.pressed.connect(func() -> void:
+		_close_rest_menu()
+		_open_wardrobe()
+	)
+	_shop_box.add_child(wardrobe_btn)
 	var close_btn := Button.new()
 	close_btn.text = "离开"
 	close_btn.pressed.connect(_close_rest_menu)
 	_shop_box.add_child(close_btn)
+
+
+## —— 衣柜：只能在杂货铺进入（试玩需求）——
+## 更换衣装、查看华丽度与时尚称号（华丽度 = 拥有所有衣装的华丽度总和）。
+
+var _wardrobe_box: VBoxContainer
+
+
+func _open_wardrobe() -> void:
+	if _menu != null or _event_running:
+		return
+	player.input_enabled = false
+	_wardrobe_box = _menu_base("衣柜", 480)
+	_refresh_wardrobe()
+
+
+func _refresh_wardrobe() -> void:
+	for child in _wardrobe_box.get_children():
+		child.queue_free()
+	_menu_message(_wardrobe_box)
+	var banner := Label.new()
+	banner.text = "华丽度 %d · 称号「%s」" % [GameState.glamour_total(), GameState.fashion_title()]
+	banner.add_theme_font_size_override("font_size", 16)
+	banner.add_theme_color_override("font_color", Color("ffd166"))
+	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wardrobe_box.add_child(banner)
+	for slot in ["hat", "top", "pants"]:
+		_bag_section(_wardrobe_box, "「%s」槽位" % GameTypes.clothing_slot_name(slot))
+		var any := false
+		for clothing_id in GameState.owned_clothes:
+			var c: ClothingData = GameData.load_clothing(clothing_id)
+			if c == null or c.slot != slot:
+				continue
+			any = true
+			var worn: bool = GameState.worn_clothes.get(slot, "") == clothing_id
+			var btn := _bag_item_button(
+					c.clothing_name + ("（穿着中）" if worn else ""),
+					"华丽度 +%d" % c.glamour, _glamour_color(c.glamour), 1,
+					_wear_from_wardrobe.bind(slot, clothing_id))
+			btn.disabled = worn
+			_wardrobe_box.add_child(btn)
+		if not any:
+			var empty := Label.new()
+			empty.text = "（这个槽位还没有衣装）"
+			empty.add_theme_font_size_override("font_size", 12)
+			empty.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
+			_wardrobe_box.add_child(empty)
+	var back_btn := Button.new()
+	back_btn.text = "返回杂货铺"
+	back_btn.pressed.connect(func() -> void:
+		_close_rest_menu()  # 同帧内重进商店：解锁后立刻重锁，无输入窗口
+		_open_shop(_wares)
+	)
+	_wardrobe_box.add_child(back_btn)
+	_focus_menu()
+
+
+func _wear_from_wardrobe(slot: String, clothing_id: String) -> void:
+	if GameState.wear_clothing(slot, clothing_id):
+		var c: ClothingData = GameData.load_clothing(clothing_id)
+		_menu_result.text = "换上了%s（%s）。" % [c.clothing_name, c.slot_name()]
+	_refresh_wardrobe()
+
+
+## 华丽度 → 色标（档位越高越接近金色）。
+func _glamour_color(glamour: int) -> Color:
+	if glamour >= 1000:
+		return Color("ffd166")
+	if glamour >= 100:
+		return Color("c792ff")
+	if glamour >= 50:
+		return Color("5a8ae0")
+	if glamour >= 10:
+		return Color("7dde8a")
+	return Color("6f6f78")
 
 
 func _buy_ware(w: Dictionary) -> void:
@@ -1039,6 +1128,13 @@ func _buy_ware(w: Dictionary) -> void:
 		var item: ItemData = GameData.load_item(w["id"])
 		data_name = item.item_name
 		price = item.price
+	elif w["kind"] == "clothing":
+		var cloth: ClothingData = GameData.load_clothing(w["id"])
+		data_name = cloth.clothing_name
+		price = cloth.price
+		if GameState.is_clothing_owned(w["id"]):
+			_menu_result.text = "这件衣装已经在衣柜里了。"
+			return
 	else:
 		var eq: EquipData = GameData.load_equip(w["id"])
 		data_name = eq.equip_name
@@ -1048,10 +1144,17 @@ func _buy_ware(w: Dictionary) -> void:
 		return
 	if w["kind"] == "item":
 		GameState.add_item(w["id"])
+	elif w["kind"] == "clothing":
+		GameState.add_clothing(w["id"])
 	else:
 		GameState.add_equip(w["id"])
 	Audio.play_sfx("coin")
-	_menu_result.text = "买下了 %s。" % data_name
+	if w["kind"] == "clothing":
+		var cloth: ClothingData = GameData.load_clothing(w["id"])
+		_menu_result.text = "买下了 %s（华丽度 +%d）。当前称号：%s" % [
+			data_name, cloth.glamour, GameState.fashion_title()]
+	else:
+		_menu_result.text = "买下了 %s。" % data_name
 	GameEvents.party_status_changed.emit()  # 刷新 HUD 金币
 	_refresh_shop()
 
@@ -1074,14 +1177,10 @@ func _refresh_bag() -> void:
 	for child in _bag_box.get_children():
 		child.queue_free()
 	_menu_message(_bag_box)
+	# —— 消耗品 ——
 	_bag_section(_bag_box, "消耗品")
 	if GameState.items.is_empty():
-		var empty := Label.new()
-		empty.text = "（空空如也）"
-		empty.add_theme_font_size_override("font_size", 12)
-		empty.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_bag_box.add_child(empty)
+		_bag_empty_hint(_bag_box, "（空空如也）")
 	for item_id in GameState.items:
 		var item: ItemData = GameData.load_item(item_id)
 		if item == null:
@@ -1089,14 +1188,25 @@ func _refresh_bag() -> void:
 		var btn := _bag_item_button(item.item_name, item.effect_text(), _item_kind_color(item),
 				GameState.items[item_id], _pick_field_target.bind(item_id))
 		_bag_box.add_child(btn)
-	_bag_section(_bag_box, "装备 · 选择后为领队穿戴")
+	# —— 成员装备（点击卸下，可再分配 = 更选）——
+	_bag_section(_bag_box, "成员装备 · 点击卸下")
+	var any_worn := false
+	for m in GameState.party:
+		for slot in m.equips:
+			any_worn = true
+			var eq: EquipData = GameData.load_equip(m.equips[slot])
+			if eq == null:
+				continue
+			var btn := _bag_item_button("%s · %s：%s" % [m.char_name, eq.slot_name(), eq.equip_name],
+					"%s（点击卸下回背包）" % eq.bonus_text(), Color("c8b04a"), 1,
+					_unequip_member.bind(m, slot))
+			_bag_box.add_child(btn)
+	if not any_worn:
+		_bag_empty_hint(_bag_box, "（成员们还没有穿戴装备）")
+	# —— 背包装备（点击穿戴）——
+	_bag_section(_bag_box, "背包装备 · 点击为成员穿戴")
 	if GameState.equip_bag.is_empty():
-		var empty_eq := Label.new()
-		empty_eq.text = "（未携带装备）"
-		empty_eq.add_theme_font_size_override("font_size", 12)
-		empty_eq.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
-		empty_eq.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_bag_box.add_child(empty_eq)
+		_bag_empty_hint(_bag_box, "（未携带装备）")
 	for equip_id in GameState.equip_bag:
 		var eq: EquipData = GameData.load_equip(equip_id)
 		if eq == null:
@@ -1104,11 +1214,48 @@ func _refresh_bag() -> void:
 		var btn := _bag_item_button("%s（%s）" % [eq.equip_name, eq.slot_name()], eq.bonus_text(),
 				Color("c8b04a"), 1, _pick_equip_target.bind(equip_id))
 		_bag_box.add_child(btn)
+	# —— 衣装（展示；更换请到杂货铺衣柜）——
+	_bag_section(_bag_box, "衣装 · 更换请到杂货铺的衣柜")
+	for clothing_id in GameState.owned_clothes:
+		var c: ClothingData = GameData.load_clothing(clothing_id)
+		if c == null:
+			continue
+		var worn: bool = GameState.worn_clothes.get(c.slot, "") == clothing_id
+		var btn := _bag_item_button(
+				c.clothing_name + ("（穿着中）" if worn else ""),
+				"%s · 华丽度 +%d" % [c.slot_name(), c.glamour],
+				_glamour_color(c.glamour), 1,
+				func() -> void: _menu_result.text = "更换衣装请到杂货铺的衣柜。")
+		_bag_box.add_child(btn)
 	var close_btn := Button.new()
 	close_btn.text = "关闭（Esc）"
 	close_btn.pressed.connect(_close_rest_menu)
 	_bag_box.add_child(close_btn)
 	_focus_menu()
+
+
+## 空状态的置灰居中提示行。
+func _bag_empty_hint(box: VBoxContainer, text: String) -> void:
+	var empty := Label.new()
+	empty.text = text
+	empty.add_theme_font_size_override("font_size", 12)
+	empty.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
+	empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(empty)
+
+
+## 卸下成员身上的一件装备回背包（配合背包装备行实现更选）。
+func _unequip_member(m: CharacterState, slot: String) -> void:
+	var old: String = m.equips.get(slot, "")
+	if old == "":
+		return
+	m.equips.erase(slot)
+	GameState.add_equip(old)
+	m.hp = mini(m.hp, m.eff_max_hp())
+	m.mp = mini(m.mp, m.eff_max_mp())
+	Audio.play_sfx("ui_confirm")
+	GameEvents.party_status_changed.emit()
+	_refresh_bag()
 
 
 ## 分节头：金菱 + 金字 + 渐隐饰线。

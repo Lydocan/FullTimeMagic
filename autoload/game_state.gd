@@ -14,6 +14,10 @@ var essences: Dictionary = {}
 var items: Dictionary = {}
 ## 未装备的装备：{equip_id: count}
 var equip_bag: Dictionary = {}
+## 衣柜：拥有的衣装 id（纯外观 + 华丽度，见 ClothingData）。
+var owned_clothes: Array = []
+## 当前穿着：{"hat"/"top"/"pants": clothing_id}。
+var worn_clothes: Dictionary = {}
 ## 剧情旗标：{flag: true}
 var flags: Dictionary = {}
 ## 遇敌与场景往返（原型期全局暂存，正式版走场景传参）。
@@ -46,6 +50,7 @@ func new_game() -> void:
 	essences = {}
 	items = {}
 	equip_bag = {}
+	_init_wardrobe()
 	flags = {}
 	pending_enemies = []
 	pending_flag = ""
@@ -55,6 +60,57 @@ func new_game() -> void:
 	return_position = Vector2.ZERO
 	has_return_position = false
 	GameEvents.party_status_changed.emit()
+
+
+## 初始衣柜：三套免费套装全数入手（骑士/魔法师/剑士，各 0 华丽度），
+## 默认穿着魔法师套装（莫凡的本行）。
+func _init_wardrobe() -> void:
+	owned_clothes = [
+		"cloth_knight_hat", "cloth_knight_top", "cloth_knight_pants",
+		"cloth_mage_hat", "cloth_mage_top", "cloth_mage_pants",
+		"cloth_sword_hat", "cloth_sword_top", "cloth_sword_pants",
+	]
+	worn_clothes = {"hat": "cloth_mage_hat", "top": "cloth_mage_top", "pants": "cloth_mage_pants"}
+
+
+## —— 衣柜：华丽度与称号 ——
+
+func is_clothing_owned(clothing_id: String) -> bool:
+	return clothing_id in owned_clothes
+
+
+## 购得新衣装（重复入手忽略）。返回是否实际入手。
+func add_clothing(clothing_id: String) -> bool:
+	if is_clothing_owned(clothing_id):
+		return false
+	owned_clothes.append(clothing_id)
+	return true
+
+
+## 换上某件已拥有的衣装。返回是否成功。
+func wear_clothing(slot: String, clothing_id: String) -> bool:
+	if not is_clothing_owned(clothing_id):
+		return false
+	var c: ClothingData = GameData.load_clothing(clothing_id)
+	if c == null or c.slot != slot:
+		return false
+	worn_clothes[slot] = clothing_id
+	return true
+
+
+## 华丽度 = 拥有所有衣装的华丽度总和（与是否穿着无关）。
+func glamour_total() -> int:
+	var total := 0
+	for clothing_id in owned_clothes:
+		var c: ClothingData = GameData.load_clothing(clothing_id)
+		if c != null:
+			total += c.glamour
+	return total
+
+
+## 当前时尚称号（华丽度阶梯，见 GameTypes.FASHION_TITLES）。
+func fashion_title() -> String:
+	return GameTypes.fashion_title(glamour_total())
 
 
 ## 剧情入队。

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ClothingData" format=3]
+
+[ext_resource type="Script" path="res://src/data/clothing_data.gd" id="1_cvmod"]
+
+[resource]
+script = ExtResource("1_cvmod")
+id = "cloth_sword_pants"
+clothing_name = "剑士束腿"
+slot = "pants"
