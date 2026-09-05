@@ -6,11 +6,13 @@
 script = ExtResource("1_foq60")
 id = "yu_ang"
 monster_name = "宇昂"
+tier = 1
 tier_name = "战将级"
+suppression_scale = 0.0
 element = 0
 max_hp = 380
 speed = 10
-attack = 13
+attack = 14
 defense = 6
 shield = 4
 weaknesses = [2]
@@ -18,19 +20,23 @@ xp_value = 20
 gold_value = 80
 texture_path = "res://assets/images/char_yuang.png"
 sprite_scale = 2.6
-attack_power = 17
+attack_power = 18
 skills = [{
 "chance": 0.3,
 "name": "炎爆",
-"power": 25,
+"power": 27,
 "status": "burn",
 "status_chance": 0.5,
 "target_all": false
 }, {
 "chance": 0.25,
 "name": "连珠火弹",
-"power": 15,
+"power": 17,
 "status": "",
 "status_chance": 0.0,
 "target_all": true
 }]
+phase_threshold = 0.5
+phase2_attack = 4
+phase2_defense = 3
+phase2_name = "炎纹觉醒"

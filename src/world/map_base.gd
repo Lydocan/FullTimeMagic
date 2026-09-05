@@ -43,6 +43,7 @@ var _triggers: Array[Dictionary] = []  # {cell, radius, event}
 var _portals: Array[Dictionary] = []   # {cell, target, spawn}
 var _npcs: Array[Dictionary] = []      # {cell, texture, name, hide_flag, event}
 var _npc_nodes: Array[Area2D] = []     # 已生成的 NPC 实体（部分注册项可能未生成）
+var _campfire_cells: Array[Vector2i] = []  # 篝火格（野外安全半径的圆心）
 var _event_running := false
 var _encounter_gauge := 0.0
 var _encounter_threshold := 200.0
@@ -76,6 +77,11 @@ func bgm_name() -> String:
 
 func map_rows() -> Array:
 	return []
+
+
+## 地图名称（底部书卷显示）。子类必须覆盖——每个地图都有名字。
+func map_display_name() -> String:
+	return "未知之地"
 
 
 func map_size() -> Vector2i:
@@ -133,6 +139,7 @@ func add_portal(cell: Vector2i, target_scene: String, spawn_cell: Vector2i) -> v
 
 
 func add_campfire(cell: Vector2i) -> void:
+	_campfire_cells.append(cell)  # 野外的安全半径圆心（in_safe_zone）
 	var fire: Area2D = CAMPFIRE_SCRIPT.new()
 	fire.position = _cell_center(cell)
 	fire.camp_used.connect(_open_rest_menu)
@@ -258,12 +265,14 @@ func _spawn_player() -> void:
 	cam.limit_bottom = size.y * TILE
 
 
-## 入场处理：战斗返回位置 → 队伍跟随 → 剧情触发检查 → 解除操作冷却。
+## 入场处理：战斗返回位置 → 队伍跟随 → 区域过场 → 剧情触发检查 → 解除操作冷却。
+## 过场盖在已就位的世界之上（先落世界、再上演出），输入全程保持锁定。
 func _apply_entry_position() -> void:
 	if GameState.has_return_position:
 		player.global_position = GameState.return_position
 		GameState.has_return_position = false
 	_sync_followers()
+	await _maybe_zone_transition()
 	await get_tree().create_timer(0.2).timeout
 	for t in _triggers:
 		if player.global_position.distance_to(_cell_center(t["cell"])) <= float(t["radius"]):
@@ -272,6 +281,127 @@ func _apply_entry_position() -> void:
 	await get_tree().create_timer(1.0).timeout
 	_cooling = false
 	player.input_enabled = true
+
+
+## —— 安全区 / 野外区 ——
+##
+## 有遇敌表的地图即野外：全域可行走格都积累遇敌计量（深草更快），
+## 篝火半径与子类登记的据点为安全区（计量消退）。无遇敌表的地图
+## （城镇/室内）整图安全。
+
+func is_wild() -> bool:
+	return not encounter_table().is_empty()
+
+
+## 子类可追加安全据点（格矩形），如林地入口的安全带。
+func safe_zones() -> Array[Rect2i]:
+	return []
+
+
+func in_safe_zone(cell: Vector2i) -> bool:
+	if not is_wild():
+		return true
+	for c in _campfire_cells:
+		if absi(c.x - cell.x) <= 3 and absi(c.y - cell.y) <= 3:
+			return true
+	for r in safe_zones():
+		if cell.x >= r.position.x and cell.y >= r.position.y \
+				and cell.x < r.end.x and cell.y < r.end.y:
+			return true
+	return false
+
+
+## 跨区过场：从安全区进入野外（或反向）时演出一次，方向随进出而定。
+## GameState 记录上一张图的野性状态；同图内往返不重复触发。
+func _maybe_zone_transition() -> void:
+	var wild := is_wild()
+	if GameState.has_prev_wildness and GameState.prev_map_wild != wild:
+		await _play_zone_transition(wild)
+	GameState.prev_map_wild = wild
+	GameState.has_prev_wildness = true
+
+
+## 双向过场（约 5s）：进野外=妖兽包围的压迫演出；回安全区=归来的宁静演出。
+## 期间玩家输入保持锁定（_cooling 尚未解除），演完才交给玩家。
+func _play_zone_transition(entering_wild: bool) -> void:
+	Audio.play_sfx("zone_wild" if entering_wild else "zone_safe")
+	var layer := CanvasLayer.new()
+	layer.layer = 90
+	add_child(layer)
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(bg)
+	var text := Label.new()
+	text.set_anchors_preset(Control.PRESET_CENTER)
+	text.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	text.grow_vertical = Control.GROW_DIRECTION_BOTH
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text.add_theme_font_size_override("font_size", 25)
+	text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	text.add_theme_constant_override("outline_size", 8)
+	text.modulate.a = 0.0
+	layer.add_child(text)
+
+	# 黑暗中的妖兽之眼：成对的猩红光斑渐次睁开（进野外专属）
+	var eyes: Array[Sprite2D] = []
+	if entering_wild:
+		text.text = "妖兽的气息在四周蔓延——准备战斗！"
+		text.add_theme_color_override("font_color", Color("ff8a6a"))
+		for i in 7:
+			var eye := Sprite2D.new()
+			var g := Gradient.new()
+			g.set_offset(0, 0.0)
+			g.set_color(0, Color(1.0, 0.35, 0.25, 0.95))
+			g.set_offset(1, 1.0)
+			g.set_color(1, Color(0.6, 0.08, 0.05, 0.0))
+			var tex := GradientTexture2D.new()
+			tex.gradient = g
+			tex.fill = GradientTexture2D.FILL_RADIAL
+			tex.fill_from = Vector2(0.5, 0.5)
+			tex.fill_to = Vector2(0.5, 0.0)
+			tex.width = 32
+			tex.height = 32
+			eye.texture = tex
+			var vp := get_viewport_rect().size
+			var side := 1.0 if i % 2 == 0 else -1.0
+			var base := Vector2(vp.x * 0.5 + side * vp.x * randf_range(0.18, 0.42),
+					vp.y * randf_range(0.2, 0.8))
+			eye.position = base
+			eye.scale = Vector2.ONE * randf_range(0.7, 1.6)
+			eye.modulate.a = 0.0
+			layer.add_child(eye)
+			eyes.append(eye)
+			# 同一只眼的双瞳
+			var twin := eye.duplicate() as Sprite2D
+			twin.position = base + Vector2(side * randf_range(14.0, 22.0), randf_range(-4.0, 4.0))
+			layer.add_child(twin)
+			eyes.append(twin)
+	else:
+		text.text = "暂时摆脱了妖兽的追踪……回营地休整吧"
+		text.add_theme_color_override("font_color", Color("ffe9a3"))
+
+	var target_bg := Color(0.06, 0.01, 0.02, 0.96) if entering_wild else Color(0.16, 0.12, 0.04, 0.9)
+	var tw := create_tween()
+	tw.tween_property(bg, "color", target_bg, 0.8)
+	if entering_wild:
+		# 妖兽之眼渐次睁开（1.0s ~ 2.6s），文字 2.2s 压上
+		for i in eyes.size():
+			var et := create_tween()
+			et.tween_interval(1.0 + 0.12 * i)
+			et.tween_property(eyes[i], "modulate:a", 1.0, 0.3)
+		tw.tween_interval(1.4)
+	else:
+		tw.tween_interval(0.7)
+	tw.tween_property(text, "modulate:a", 1.0, 0.7)
+	tw.tween_interval(2.2)
+	tw.tween_property(text, "modulate:a", 0.0, 0.6)
+	tw.tween_property(bg, "color:a", 0.0, 0.7)
+	for eye in eyes:
+		tw.parallel().tween_property(eye, "modulate:a", 0.0, 0.7)
+	tw.tween_callback(layer.queue_free)
+	await tw.finished
 
 
 ## 队伍跟随：除首位（玩家操控）外的成员以跟随者链式登场。
@@ -345,14 +475,16 @@ func _on_player_moved(distance: float) -> void:
 		if player.global_position.distance_to(_cell_center(t["cell"])) <= float(t["radius"]):
 			run_event(t["event"])
 			return
-	# 暗雷
+	# 暗雷：野外全域都有概率遇敌（深草更快）；篝火半径等安全区计量消退
 	var table := encounter_table()
 	if table.is_empty():
 		return
-	if _cell_char(cell) == "H":
-		_encounter_gauge += distance
-	else:
+	if in_safe_zone(cell):
 		_encounter_gauge = maxf(_encounter_gauge - distance * 0.6, 0.0)
+	elif _cell_char(cell) == "H":
+		_encounter_gauge += distance * 1.5  # 深草：妖兽巢穴，格外危险
+	else:
+		_encounter_gauge += distance
 	if _encounter_gauge >= _encounter_threshold:
 		_encounter_gauge = 0.0
 		_encounter_threshold = randf_range(160.0, 280.0)
@@ -415,6 +547,9 @@ func _build_hud() -> void:
 	_hud.add_child(mm)
 	mm.position = Vector2(vw - mm.size.x - 12, 12)
 
+	# 底部中央：书卷式地图名（入场时缓缓展开）
+	_build_map_scroll()
+
 	# 右上信息列：小地图 → 目标提示（与黄三角同色联动）→ 金币/精魄，右缘对齐
 	_objective_label = Label.new()
 	_objective_label.add_theme_font_size_override("font_size", 14)
@@ -430,11 +565,65 @@ func _build_hud() -> void:
 	_hud.add_child(_wealth_label)
 
 	var hint := Label.new()
-	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 系统/关闭菜单 · 深草区遇敌 · 篝火处休息/修炼/突破/存档"
+	hint.text = "WASD/方向键 移动 · E 交互 · I/Tab 背包 · Esc 系统/关闭菜单 · 野外可行走区域均会遇敌（深草更危险）· 篝火处休息/修炼/突破/存档"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	hint.position = Vector2(12, get_viewport_rect().size.y - 34)
 	_hud.add_child(hint)
+
+
+## —— 底部书卷地图名 ——
+##
+## 左右卷轴杆 + 中间羊皮纸面；入场时从中心横向展开，停驻不碍事。
+
+func _build_map_scroll() -> void:
+	var vw := get_viewport_rect().size.x
+	var vh := get_viewport_rect().size.y
+	var scroll := HBoxContainer.new()
+	scroll.add_theme_constant_override("separation", 0)
+	var rod_style := StyleBoxFlat.new()
+	rod_style.bg_color = Color("6b4a2f")
+	rod_style.set_corner_radius_all(4)
+	rod_style.border_width_top = 2
+	rod_style.border_width_bottom = 2
+	rod_style.border_color = Color("8a6238")
+	var rod_l := PanelContainer.new()
+	rod_l.add_theme_stylebox_override("panel", rod_style)
+	rod_l.custom_minimum_size = Vector2(9, 40)
+	scroll.add_child(rod_l)
+	var parchment := PanelContainer.new()
+	var p_style := StyleBoxFlat.new()
+	p_style.bg_color = Color("d8c9a8")
+	p_style.border_color = Color("8a734f")
+	p_style.set_border_width_all(2)
+	p_style.set_corner_radius_all(2)
+	p_style.content_margin_left = 20.0
+	p_style.content_margin_right = 20.0
+	p_style.content_margin_top = 4.0
+	p_style.content_margin_bottom = 5.0
+	parchment.add_theme_stylebox_override("panel", p_style)
+	var name_label := Label.new()
+	name_label.text = "　%s　" % map_display_name()
+	name_label.add_theme_font_size_override("font_size", 17)
+	name_label.add_theme_color_override("font_color", Color("4a3520"))
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	parchment.add_child(name_label)
+	scroll.add_child(parchment)
+	# 右杆再补一根（左-纸-右）
+	var rod_r := PanelContainer.new()
+	rod_r.add_theme_stylebox_override("panel", rod_style)
+	rod_r.custom_minimum_size = Vector2(9, 40)
+	scroll.add_child(rod_r)
+	scroll.position = Vector2((vw - 260.0) * 0.5, vh - 92.0)
+	_hud.add_child(scroll)
+	# 展开动画：以纸面中心为轴向两侧摊开
+	scroll.reset_size()
+	scroll.pivot_offset = scroll.size * 0.5
+	scroll.position = Vector2((vw - scroll.size.x) * 0.5, vh - 92.0)
+	scroll.scale = Vector2(0.05, 1.0)
+	var tw := create_tween()
+	tw.tween_interval(0.35)
+	tw.tween_property(scroll, "scale", Vector2.ONE, 0.55).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
 ## —— 队员状态块：姓名行 + HP/MP 进度条（条上叠数值） ——
@@ -638,6 +827,8 @@ func _open_rest_menu() -> void:
 				_essence_short(need), GameState.ESSENCE_COST, GameState.essence_count(need),
 			]
 			btn.disabled = GameState.essence_count(need) < GameState.ESSENCE_COST
+			# 记录归属：突破后精魄数量变化，_refresh_menu 按此刷新文案与可点性
+			btn.set_meta("breakthrough_btn", {"member": m, "element": el_i})
 			btn.pressed.connect(func() -> void:
 				if GameState.try_breakthrough(m, el_i):
 					Audio.play_sfx("breakthrough")
@@ -682,6 +873,22 @@ func _refresh_menu() -> void:
 		if btn.has_meta("cultivate_element"):
 			var el: int = btn.get_meta("cultivate_element")
 			btn.disabled = GameState.party[0].is_bottleneck(el)
+		# 突破按钮随精魄存量/瓶颈状态实时刷新——突破用掉最后一组精魄后，
+		# 按钮的「持有 N」与可点性若停留在旧值，就是"还提示有精魄可用"的假象
+		if btn.has_meta("breakthrough_btn"):
+			var info: Dictionary = btn.get_meta("breakthrough_btn")
+			var mm: CharacterState = info["member"]
+			var el_i: int = info["element"]
+			if not mm.is_bottleneck(el_i):
+				btn.disabled = true  # 该系已突破，按钮退场前置（下一轮重建时消失）
+				(btn as Button).text = "%s 已突破%s" % [mm.char_name, GameTypes.stage_name(mm.stage_of(el_i))]
+			else:
+				var need: String = GameState.essence_for_element(el_i)
+				(btn as Button).text = "%s 突破%s（需 %s×%d，持有 %d）" % [
+					mm.char_name, GameTypes.stage_name(mm.stage_of(el_i) + 1),
+					_essence_short(need), GameState.ESSENCE_COST, GameState.essence_count(need),
+				]
+				btn.disabled = GameState.essence_count(need) < GameState.ESSENCE_COST
 
 
 ## —— 商店：买断制货架，金币结算 ——

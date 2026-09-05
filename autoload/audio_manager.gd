@@ -29,7 +29,22 @@ const SFX := {
 	"spell_thunder": "res://assets/audio/spell_thunder.wav",
 	"spell_fire": "res://assets/audio/spell_fire.wav",
 	"spell_ice": "res://assets/audio/spell_ice.wav",
+	"zone_wild": "res://assets/audio/zone_wild.wav",
+	"zone_safe": "res://assets/audio/zone_safe.wav",
+	"voice_blip": "res://assets/audio/voice_blip.wav",
 }
+
+## 技能呼喊的音色档案（pitch/rate 即使共用系统嗓音也能拉开角色区分度）。
+const VOICE_PROFILES := {
+	"mo_fan": {"pitch": 0.8, "rate": 0.95, "female": false},
+	"mu_ningxue": {"pitch": 1.3, "rate": 1.05, "female": true},
+	"tangyue": {"pitch": 1.1, "rate": 1.0, "female": true},
+	"yu_ang": {"pitch": 0.9, "rate": 0.9, "female": false},
+}
+
+var _zh_voices: Array = []
+var _voice_male := ""
+var _voice_female := ""
 const SFX_CHANNELS := 6
 
 var current_bgm := ""
@@ -69,8 +84,8 @@ func play_bgm(bgm_name: String) -> void:
 	_bgm_player.play()
 
 
-## 播放音效：空闲通道池，全占用时抢占第一个。
-func play_sfx(sfx_name: String) -> void:
+## 播放音效：空闲通道池，全占用时抢占第一个。pitch 用于同音变调（呼喊兜底）。
+func play_sfx(sfx_name: String, pitch: float = 1.0) -> void:
 	if not SFX.has(sfx_name):
 		push_warning("未知音效：%s" % sfx_name)
 		return
@@ -81,5 +96,34 @@ func play_sfx(sfx_name: String) -> void:
 			player = p
 			break
 	player.stream = stream
+	player.pitch_scale = pitch
 	player.volume_db = linear_to_db(sfx_volume)
 	player.play()
+
+
+## 技能呼喊：优先用系统 TTS 念出技能名（按角色分配男女声 + 音高/语速）；
+## 无中文语音包的环境（无头测试/精简系统）退化为按角色音高的短促喊招音，
+## 视觉上的技能名飘字始终存在，战斗节奏不受影响。
+func speak(text: String, char_id: String) -> void:
+	var p: Dictionary = VOICE_PROFILES.get(char_id, {"pitch": 1.0, "rate": 1.0, "female": false})
+	if DisplayServer.has_feature(DisplayServer.FEATURE_TEXT_TO_SPEECH):
+		if _zh_voices.is_empty():
+			for v in DisplayServer.tts_get_voices():
+				if String(v.get("language", "")).begins_with("zh"):
+					_zh_voices.append(v)
+			for v in _zh_voices:
+				var n := String(v.get("name", "")).to_lower()
+				# Windows 中文嗓音：Kangkang/Yunyang/Yunxi 为男声，其余（Huihui/
+				# Yaoyao/Xiaoxiao…）按女声兜底
+				if n.contains("kangkang") or n.contains("yunyang") or n.contains("yunxi"):
+					if _voice_male == "":
+						_voice_male = v.get("id", "")
+				elif _voice_female == "":
+					_voice_female = v.get("id", "")
+			if _voice_male == "":
+				_voice_male = _voice_female
+		if not _zh_voices.is_empty():
+			var voice := _voice_female if p["female"] else _voice_male
+			DisplayServer.tts_speak(text, voice, 80, p["pitch"], 1.0, p["rate"])
+			return
+	play_sfx("voice_blip", p["pitch"])

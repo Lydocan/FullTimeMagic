@@ -184,6 +184,25 @@ func _sfx_tracks() -> void:
 	_tone(b, 0.18, 0.14, 0.0, 0.12, "noise")
 	_save(_stream(b), "spell_ice.wav")
 
+	# 区域过场：进野外=低鸣与远方嚎叫；回安全区=安宁上行琶音
+	b = _buf(2.2)
+	_sweep(b, 0.0, 1.6, 110.0, 55.0, 0.32, "saw")    # 低频压迫鸣
+	_tone(b, 0.2, 1.4, 0.0, 0.12, "noise")           # 尘霾噪声
+	_tone(b, 0.7, 0.5, _f(45), 0.2, "sine")          # 远方低嚎
+	_sweep(b, 1.2, 0.5, 240.0, 380.0, 0.12, "sine")  # 嚎声上扬
+	_save(_stream(b), "zone_wild.wav")
+
+	b = _buf(1.6)
+	_melody(b, [64, 69, 73, 76], 0.16, 2, "sine", 0.2)  # 归家琶音
+	_tone(b, 0.64, 0.7, _f(76), 0.14, "tri")
+	_save(_stream(b), "zone_safe.wav")
+
+	# 技能呼喊兜底音（TTS 无中文嗓音时替代"喊招"）：短促人声式上扬
+	b = _buf(0.22)
+	_sweep(b, 0.0, 0.14, 330.0, 660.0, 0.34, "tri")
+	_tone(b, 0.13, 0.07, 0.0, 0.1, "noise")
+	_save(_stream(b), "voice_blip.wav")
+
 	b = _buf(0.9)
 	_melody(b, [72, 76, 79, 84], 0.14, 2, "square", 0.22)
 	_tone(b, 0.56, 0.3, _f(84), 0.2, "square")

@@ -74,18 +74,33 @@ func _draw_marker(world_pos: Vector2, color: Color) -> void:
 	draw_circle(pos, 2.5, color)
 
 
-## 主线目标黄三角：向上指并轻微浮动，目标不在本图时省略。
+## 主线目标标记：目标本体画脉动圆点；同时一枚黄三角骑在面板内切圆的
+## 边缘上，箭头指向目标方位——随玩家移动沿圆边游动（方向指向牌），
+## 目标不在本图时省略。
 func _draw_objective() -> void:
 	var target: Vector2 = _map.objective_target()
 	if target == Vector2.INF:
 		return
 	var bob := sin(Time.get_ticks_msec() / 250.0) * 1.5
-	var pos := _to_minimap(target) + Vector2(0, -5 + bob)
-	var r := 4.5
+	# 目标本体：小圆点 + 呼吸外圈
+	var tpos := _to_minimap(target)
+	draw_circle(tpos + Vector2(0.5, 0.5), 4.0 + bob * 0.5, Color(0, 0, 0, 0.4))
+	draw_circle(tpos, 2.5, OBJECTIVE_COLOR)
+	# 圆边指向牌：由玩家指向目标的方位角决定三角在圆边上的位置
+	var center := size * 0.5
+	var rail := minf(size.x, size.y) * 0.5 - 4.0
+	draw_arc(center, rail, 0, TAU, 48, Color(1, 1, 1, 0.08), 1.0)
+	var dir := (tpos - _to_minimap(_map.player.global_position))
+	if dir.length() < 2.0:
+		return
+	dir = dir.normalized()
+	var pos := center + dir * rail
+	var perp := Vector2(-dir.y, dir.x)
+	var r := 5.0
 	var points := PackedVector2Array([
-		pos + Vector2(0, -r),
-		pos + Vector2(r * 0.9, r * 0.7),
-		pos + Vector2(-r * 0.9, r * 0.7),
+		pos + dir * r,
+		pos - dir * r * 0.6 + perp * r * 0.8,
+		pos - dir * r * 0.6 - perp * r * 0.8,
 	])
 	draw_colored_polygon(points, OBJECTIVE_COLOR)
 	draw_polyline(points + PackedVector2Array([points[0]]), Color(0, 0, 0, 0.55), 1.0)

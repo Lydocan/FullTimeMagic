@@ -48,8 +48,50 @@ func _ready() -> void:
 	ok = sys_ok and ok
 	var il_ok: bool = await _test_interact_lock_and_highlight()
 	ok = il_ok and ok
+	var bt_ok: bool = await _test_breakthrough_button_refresh()
+	ok = bt_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
+
+
+## 突破按钮状态必须随精魄存量刷新：曾停留在旧「持有 N」，精魄用完
+## 按钮仍可点，读起来像"还提示有精魄可用"（试玩反馈）。
+func _test_breakthrough_button_refresh() -> bool:
+	print("[突破按钮刷新]")
+	var ok := true
+	GameState.new_game()
+	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_done", "prologue_tutorial_done"]:
+		GameState.flags[f] = true
+	var m: CharacterState = GameState.party[0]
+	m.gain_xp(m.main_element, 99)  # 直至瓶颈：三星圆满
+	var need: String = GameState.essence_for_element(m.main_element)
+	GameState.essences[need] = GameState.ESSENCE_COST  # 恰好一次的量
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	await get_tree().create_timer(1.5).timeout
+	city._open_rest_menu()
+	await get_tree().process_frame
+	var btn: Button = null
+	for b in city._menu.find_children("*", "Button", true, false):
+		if b.has_meta("breakthrough_btn"):
+			btn = b
+			break
+	if btn == null:
+		printerr("  FAIL  找不到突破按钮")
+		city.free()
+		return false
+	btn.pressed.emit()  # 用掉最后一组精魄
+	await get_tree().process_frame
+	var spent_ok: bool = GameState.essence_count(need) == 0
+	var stale_gone: bool = btn.disabled and btn.text.contains("持有 0") == false
+	if spent_ok and stale_gone:
+		print("  PASS  突破后按钮即时失效（无精魄残留提示）")
+	else:
+		printerr("  FAIL  突破后按钮状态陈旧（disabled=%s, 文案=%s）" % [btn.disabled, btn.text])
+		ok = false
+	city.free()
+	await get_tree().process_frame
+	return ok
 
 
 ## 装备流程回归：背包 → 选装备 → 选成员。曾因菜单重建帧内焦点被抢给
@@ -160,20 +202,21 @@ func _test_interact_lock_and_highlight() -> bool:
 		printerr("  FAIL  找不到篝火")
 		city.free()
 		return false
-	# 高亮：走近篝火出「E」徽标 + 描金，走远熄灭
+	# 高亮：走近篝火亮描金（E 徽标已按试玩反馈移除），走远熄灭
 	player.global_position = fire.global_position + Vector2(30, 0)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var hl_on: bool = fire.get("_near") == true and fire.get("_mark").visible
-	if hl_on:
-		print("  PASS  走近篝火：高亮 + E 徽标")
+	var glow_on: bool = fire.get("_glow").get_shader_parameter("active") == 1.0 \
+			and fire.get("_mark") == null  # E 字样不再存在
+	if glow_on:
+		print("  PASS  走近篝火：描金高亮（无 E 徽标）")
 	else:
 		printerr("  FAIL  篝火未高亮")
 		ok = false
 	player.global_position = fire.global_position + Vector2(200, 0)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if fire.get("_near") == false:
+	if fire.get("_glow").get_shader_parameter("active") == 0.0:
 		print("  PASS  走远后高亮熄灭")
 	else:
 		printerr("  FAIL  走远后仍高亮")

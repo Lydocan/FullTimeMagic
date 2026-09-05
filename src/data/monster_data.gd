@@ -4,8 +4,14 @@ extends Resource
 
 @export var id: String = ""
 @export var monster_name: String = ""
-## 妖魔等级：奴仆级 / 战将级 / 统领级 / 君主级（对照玩家位阶，见 docs/world.md）。
+## 妖魔等阶（GameTypes.MonsterTier）：奴仆/战将/统领/君主，与玩家位阶同尺度。
+## 与玩家阶差（tier - 队伍最高阶）驱动战斗内的等级压制，见 battle.gd。
+@export var tier: int = 0
+## 妖魔等级显示名（由 tier 决定，数据里冗余一份便于编辑器查看）。
 @export var tier_name: String = "奴仆级"
+## 等级压制的强弱系数：0 = 不受压制（人类对手/决斗对等），
+## 0.5 = 虚弱个体（如林地先遣狼王），1.0 = 完整压制。
+@export_range(0.0, 1.0) var suppression_scale: float = 1.0
 ## 元素归属（GameTypes.Element；-1 = 野性无属）。技能名与施法特效配色用。
 @export var element: int = -1
 @export var max_hp: int = 30
@@ -30,3 +36,9 @@ extends Resource
 ## {"name", "power", "chance"(发动概率，逐技掷骰先中先用), "target_all",
 ##  "status"("burn"/"paralyze"/""), "status_chance"(命中后附加状态的概率)}
 @export var skills: Array = []
+## —— 二阶段（Boss/关键人物）：血量降到 phase_threshold 以下时进入——
+## 攻击/防御获得加成，血条分段变色并盖章演出。0 = 无二阶段。
+@export_range(0.0, 1.0) var phase_threshold: float = 0.0
+@export var phase2_attack: int = 0
+@export var phase2_defense: int = 0
+@export var phase2_name: String = ""

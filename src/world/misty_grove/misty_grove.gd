@@ -40,6 +40,10 @@ func map_rows() -> Array:
 	return MAP
 
 
+func map_display_name() -> String:
+	return "灰雾林地"
+
+
 func bgm_name() -> String:
 	return "grove"
 

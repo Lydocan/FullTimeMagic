@@ -65,61 +65,74 @@ func _spell(id: String, spell_name: String, element: int, tier: int, cfg: Dictio
 
 
 func _gen_monsters() -> void:
-	# 数值与 resources/monsters/*.tres 保持同步（2026-09-03 平衡调整：修为产出
-	# 收紧、怪物增厚、技能表制——小怪一技，Boss 多技，元素与自身匹配）
+	# 数值与 resources/monsters/*.tres 保持同步（2026-09-05 严峻化调整：
+	# 攻击普涨 ~25-35%——初阶打小怪也要吃力；等阶 + 压制系数 + Boss 二阶段。
+	# 同阶妖兽强于人类（world.md：等级压制感）；压制系数 0=人类对等，
+	# 0.5=虚弱个体，1.0=完整压制，保底可攻略——见 battle.gd _tier_gap）
 	_monster({
-		"id": "rat_swarm", "monster_name": "鼠潮", "tier_name": "奴仆级",
+		"id": "rat_swarm", "monster_name": "鼠潮", "tier": GameTypes.MonsterTier.SERVANT,
 		"element": -1,
-		"max_hp": 45, "speed": 7, "attack": 9, "defense": 2, "shield": 1,
+		"max_hp": 45, "speed": 7, "attack": 11, "defense": 2, "shield": 1,
 		"weaknesses": [GameTypes.Element.FIRE],
 		"xp_value": 2, "gold_value": 6,
 		"texture_path": "res://assets/images/monster_rat.png", "sprite_scale": 2.6,
-		"attack_power": 11,
-		"skills": [{"name": "撕咬", "power": 14, "chance": 0.25,
+		"attack_power": 14,
+		"skills": [{"name": "撕咬", "power": 18, "chance": 0.25,
 			"target_all": false, "status": "", "status_chance": 0.0}],
 	})
 	_monster({
-		"id": "one_eye_wolf", "monster_name": "独眼魔狼", "tier_name": "战将级",
+		"id": "one_eye_wolf", "monster_name": "独眼魔狼", "tier": GameTypes.MonsterTier.COMMANDER,
 		"element": GameTypes.Element.LIGHTNING,
-		"max_hp": 110, "speed": 10, "attack": 10, "defense": 4, "shield": 2,
+		"max_hp": 130, "speed": 10, "attack": 13, "defense": 5, "shield": 2,
 		"weaknesses": [GameTypes.Element.LIGHTNING],
-		"xp_value": 6, "gold_value": 15,
+		"xp_value": 8, "gold_value": 18,
 		"essence_id": "essence_lightning", "essence_chance": 0.4,
 		"texture_path": "res://assets/images/monster_wolf.png", "sprite_scale": 2.2,
-		"attack_power": 14,
-		"skills": [{"name": "独眼魔光", "power": 18, "chance": 0.25,
+		"attack_power": 18,
+		"skills": [{"name": "独眼魔光", "power": 23, "chance": 0.25,
 			"target_all": false, "status": "paralyze", "status_chance": 0.6}],
 	})
 	_monster({
-		"id": "wolf_alpha", "monster_name": "独眼魔狼王", "tier_name": "统领级",
+		"id": "wolf_alpha", "monster_name": "独眼魔狼王", "tier": GameTypes.MonsterTier.OVERLORD,
 		"element": GameTypes.Element.LIGHTNING,
-		"max_hp": 400, "speed": 11, "attack": 12, "defense": 6, "shield": 3,
+		"max_hp": 440, "speed": 11, "attack": 15, "defense": 7, "shield": 3,
 		"weaknesses": [GameTypes.Element.LIGHTNING, GameTypes.Element.FIRE],
-		"xp_value": 25, "gold_value": 60,
+		"xp_value": 30, "gold_value": 70,
 		"essence_id": "essence_lightning", "essence_chance": 1.0,
+		# 林地这只为先遣的虚弱分身（suppression_scale 0.5）：统领级对初阶
+		# 仍需可攻略——完整体的压制将在博城之变（M3.3）兑现
+		"suppression_scale": 0.5,
 		# 狼王独占贴图（双角+异变赤纹）：统领级不能与战将级共用一张脸，
 		# 2.6 倍下的 132x86 画布 ≈ 屏上 343x224，体积压过在场所有单位
 		"texture_path": "res://assets/images/monster_wolf_king.png", "sprite_scale": 2.6,
-		"attack_power": 19,
+		"attack_power": 24,
+		# 二阶段：半血狂化，攻防再上台阶
+		"phase_threshold": 0.5, "phase2_attack": 5, "phase2_defense": 3,
+		"phase2_name": "狼王狂化",
 		"skills": [
-			{"name": "狼王咆哮", "power": 20, "chance": 0.3,
+			{"name": "狼王咆哮", "power": 25, "chance": 0.3,
 				"target_all": true, "status": "burn", "status_chance": 0.5},
-			{"name": "雷霆扑杀", "power": 26, "chance": 0.25,
+			{"name": "雷霆扑杀", "power": 31, "chance": 0.25,
 				"target_all": false, "status": "", "status_chance": 0.0},
 		],
 	})
 	_monster({
-		"id": "yu_ang", "monster_name": "宇昂", "tier_name": "战将级",
+		"id": "yu_ang", "monster_name": "宇昂", "tier": GameTypes.MonsterTier.COMMANDER,
 		"element": GameTypes.Element.FIRE,
-		"max_hp": 380, "speed": 10, "attack": 13, "defense": 6, "shield": 4,
+		"max_hp": 380, "speed": 10, "attack": 14, "defense": 6, "shield": 4,
 		"weaknesses": [GameTypes.Element.LIGHTNING],
 		"xp_value": 20, "gold_value": 80,
+		# 人类对手不受等级压制（毕业决斗是技能对等的镜像局，初阶莫凡打赢
+		# 战将级宇昂是原著定局）；半血进入二阶段，攻防强化
+		"suppression_scale": 0.0,
+		"phase_threshold": 0.5, "phase2_attack": 4, "phase2_defense": 3,
+		"phase2_name": "炎纹觉醒",
 		"texture_path": "res://assets/images/char_yuang.png", "sprite_scale": 2.6,
-		"attack_power": 17,
+		"attack_power": 18,
 		"skills": [
-			{"name": "炎爆", "power": 25, "chance": 0.3,
+			{"name": "炎爆", "power": 27, "chance": 0.3,
 				"target_all": false, "status": "burn", "status_chance": 0.5},
-			{"name": "连珠火弹", "power": 15, "chance": 0.25,
+			{"name": "连珠火弹", "power": 17, "chance": 0.25,
 				"target_all": true, "status": "", "status_chance": 0.0},
 		],
 	})
@@ -129,4 +142,5 @@ func _monster(cfg: Dictionary) -> void:
 	var m := MonsterData.new()
 	for key in cfg:
 		m.set(key, cfg[key])
+	m.tier_name = GameTypes.monster_tier_name(m.tier)  # 显示名由等阶唯一决定
 	_save(m, MONSTER_DIR + cfg["id"] + ".tres")

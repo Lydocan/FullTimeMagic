@@ -1,8 +1,8 @@
 extends Area2D
 ## 剧情 NPC：站在剧情点的人物实体（歧路旅人式——剧情有"人"在场）。
 ##
-## 头顶显示名字与浮动标记；玩家进入交互距离时描金高亮、「!」变「E」徽标，
-## 按 E 触发交互（与篝火同一交互通道）。剧情完成后 hide_flag 点亮，
+## 头顶显示名字与浮动「!」标记；玩家进入交互距离时描金光边亮起（即是
+## "可以按 E"的提示，不再额外显示 E 字样）。剧情完成后 hide_flag 点亮，
 ## 地图会让人物退场（见 MapBase._spawn_npc）。
 ## 装饰 NPC（event 无效）不显示标记、不高亮、不响应按 E。
 
@@ -68,8 +68,8 @@ func _process(delta: float) -> void:
 			break
 	if near != _near:
 		_near = near
-		_mark.text = "E" if near else "!"
-		_mark.add_theme_font_size_override("font_size", 16 if near else 18)
+		_mark.text = "!"  # 靠近不换「E」字样：描金光边即交互提示（试玩反馈去 E）
+		_mark.add_theme_font_size_override("font_size", 18)
 	_mark.add_theme_color_override("font_color",
 			Color("ffd166") if not near else Color("ffe9a3").lightened(0.1 + 0.1 * sin(_bob_time * 2.0)))
 	if _glow != null:

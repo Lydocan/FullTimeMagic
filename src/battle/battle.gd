@@ -62,6 +62,11 @@ var _shake_amt := 0.0
 
 
 func _ready() -> void:
+	# fx 层最先建：演出辅助（盖章/闪光/震屏）可能被任何阶段调用，
+	# 不应依赖 _build_ui 的先后顺序（曾致登场预警在空层上炸掉）
+	_fx_layer = CanvasLayer.new()
+	_fx_layer.layer = 5
+	add_child(_fx_layer)
 	_party.clear()
 	if GameState.pending_party_ids.is_empty():
 		_party = GameState.party.duplicate()
@@ -79,7 +84,25 @@ func _ready() -> void:
 	_log("遭遇妖魔：%s" % "、".join(_enemy_names()))
 	_stamp("遭 遇 战", Color("ff8a7a"))
 	Audio.play_bgm("battle")
+	_announce_suppression()
 	_start_round()
+
+
+## 等级压制预警：等阶高于队伍的妖魔登场，红章警告（fx 层就绪后才演，
+## 等「遭遇战」章先落定，错开节拍）。
+func _announce_suppression() -> void:
+	var suppressed := false
+	for e in _enemies:
+		if e["gap"] >= 1.0:
+			suppressed = true
+			break
+	if not suppressed:
+		return
+	await _pause(1.1)
+	_log("⚠ %s 的等阶远在队伍之上——等级压制！" % _enemies[0]["data"].monster_name)
+	_flash_screen(Color(0.7, 0.1, 0.05, 0.3), 0.5)
+	_shake(9.0)
+	_stamp("等 级 压 制", Color("ff5a4a"))
 
 
 ## —— 场景构建 ——
@@ -99,9 +122,14 @@ func _spawn_enemies() -> void:
 	for i in ids.size():
 		var data := GameData.load_monster(ids[i])
 		var actor := BattleActorScript.new()
-		actor.setup(load(data.texture_path), data.monster_name, data.sprite_scale)
+		var title: String = data.monster_name
+		if data.suppression_scale > 0.0 or data.tier > 0:
+			title += "·%s" % data.tier_name  # 妖魔亮等阶；人类对手不挂牌
+		actor.setup(load(data.texture_path), title, data.sprite_scale)
 		actor.position = Vector2(640 + (i - (ids.size() - 1) * 0.5) * 220.0, 210)
 		actor.set_weaknesses(data.weaknesses, [])
+		if data.phase_threshold > 0.0:
+			actor.set_phase_marker(data.phase_threshold)
 		add_child(actor)
 		# 登场演出：自上方压入场 + 落地震屏，错峰登场压出压迫感
 		var target := actor.position
@@ -116,6 +144,7 @@ func _spawn_enemies() -> void:
 		_enemies.append({
 			"data": data, "hp": data.max_hp, "shield": data.shield,
 			"broken": false, "burn": 0, "paralyzed": false, "discovered": [],
+			"phase2": false, "gap": _tier_gap(data),
 			"actor": actor,
 		})
 	_shake(6.0)
@@ -134,9 +163,6 @@ func _spawn_party_actors() -> void:
 
 
 func _build_ui() -> void:
-	_fx_layer = CanvasLayer.new()
-	_fx_layer.layer = 5
-	add_child(_fx_layer)
 	_build_gradation()
 	_build_vignette()
 
@@ -1104,9 +1130,13 @@ func _resolve_player_spell() -> void:
 	_log("%s 施展「%s」%s（%d 段）" % [
 		m.char_name, s.spell_name, "◆星辉增幅 " if boost > 0 else "", hits,
 	])
-	# 施法演出：行动者后仰起手 + 星辉增幅时紫光一闪
+	# 施法演出：行动者后仰起手 + 喊出技能名（TTS 分角色音色）+ 星辉增幅紫光
 	var caster := _party_actors[_party.find(m)]
 	caster.windup()
+	if not _fx_mute:
+		Audio.speak("%s！" % s.spell_name, m.id)
+		_popup(caster.position + Vector2(6, -52), "「%s！」" % s.spell_name,
+				GameTypes.element_color(s.element).lightened(0.35), 21)
 	if boost > 0:
 		_flash_screen(Color(0.66, 0.45, 1.0, 0.22), 0.3)
 	var targets: Array = _alive_enemies() if s.target_all else [_enemies[_target_entry]]
@@ -1129,10 +1159,59 @@ func _resolve_player_spell() -> void:
 	_advance()
 
 
+## —— 等阶压制与二阶段（design：同阶妖兽强于人类，跨阶挑战凶多吉少） ——
+
+## 有效阶差 = 妖魔等阶 - 队伍最高位阶，再乘压制系数（虚弱个体打折扣，
+## 人类对手为 0）。≥1 即亮「等级压制」警告并放大敌方伤害。
+func _tier_gap(d: MonsterData) -> float:
+	var party_stage := 0
+	for m in _party:
+		party_stage = maxi(party_stage, m.stage_of(m.main_element))
+	return maxf(0.0, float(d.tier - party_stage)) * d.suppression_scale
+
+
+## 压制下玩家对妖魔的输出折减：阶差越大打越轻（下限五折）。
+func _party_damage_mult(gap: float) -> float:
+	return maxf(0.5, 1.0 - 0.25 * gap)
+
+
+## 压制下妖魔的输出增幅：跨阶挑战每差一阶疼一大截。
+func _monster_damage_mult(gap: float) -> float:
+	return 1.0 + 0.45 * gap
+
+
+## 妖魔当前攻击/防御（二阶段加成后）。
+func _enemy_attack(e: Dictionary) -> int:
+	var d: MonsterData = e["data"]
+	return d.attack + (d.phase2_attack if e.get("phase2", false) else 0)
+
+
+func _enemy_defense(e: Dictionary) -> int:
+	var d: MonsterData = e["data"]
+	return d.defense + (d.phase2_defense if e.get("phase2", false) else 0)
+
+
+## 二阶段检测：血线跌破阈值触发强化，演出与数值同步切换。
+func _check_phase2(e: Dictionary) -> void:
+	var d: MonsterData = e["data"]
+	if e.get("phase2", false) or d.phase_threshold <= 0.0:
+		return
+	if e["hp"] > 0 and e["hp"] <= int(d.max_hp * d.phase_threshold):
+		e["phase2"] = true
+		e["actor"].enter_phase2()
+		_stamp(d.phase2_name if d.phase2_name != "" else "二 阶 段", Color("ff5a4a"))
+		_flash_screen(Color(0.75, 0.12, 0.08, 0.42), 0.45)
+		_shake(12.0)
+		Audio.play_sfx("break")
+		_log("◆ %s 陷入「%s」！攻击与防御大幅强化！" % [
+			d.monster_name, d.phase2_name if d.phase2_name != "" else "二阶段"])
+
+
 func _hit_enemy(user: CharacterState, e: Dictionary, s: SpellData) -> void:
 	var data: MonsterData = e["data"]
 	var is_weak: bool = s.element in data.weaknesses
-	var raw := (s.power + user.eff_magic()) * randf_range(0.9, 1.1) - data.defense
+	var raw := (s.power + user.eff_magic()) * randf_range(0.9, 1.1) - _enemy_defense(e)
+	raw *= _party_damage_mult(e["gap"])
 	var dmg := maxi(1, roundi(raw))
 	if e["broken"]:
 		dmg = roundi(dmg * 1.5)
@@ -1153,6 +1232,7 @@ func _hit_enemy(user: CharacterState, e: Dictionary, s: SpellData) -> void:
 				_flash_screen(Color(1.0, 0.95, 0.75, 0.4))
 				_shake(13.0)
 	e["hp"] = maxi(e["hp"] - dmg, 0)
+	_check_phase2(e)
 	Audio.play_sfx("hit")
 	_log("%s 对 %s 造成 %d 伤害%s。" % [user.char_name, data.monster_name, dmg, "（破魔）" if e["broken"] else ""])
 	# 命中反馈：弱点金色大字，普伤白字；破魔状态下伤害更深用大号
@@ -1214,7 +1294,9 @@ func _enemy_act(e: Dictionary) -> void:
 		await _cast_fx(el, attacker.position + Vector2(0, -attacker._half_h * 0.6), victim_points)
 	await _pause(0.16)
 	for m in victims:
-		var raw: float = (skill["power"] + d.attack * 0.3) * randf_range(0.9, 1.1) - m.defense * 1.2
+		var raw: float = (skill["power"] + _enemy_attack(e) * 0.3) * randf_range(0.9, 1.1)
+		raw *= _monster_damage_mult(e["gap"])
+		raw -= m.defense * 1.2
 		var dmg := maxi(1, roundi(raw))
 		if m.defending:
 			dmg = maxi(1, roundi(dmg * 0.5))

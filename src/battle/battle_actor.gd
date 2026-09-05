@@ -12,6 +12,8 @@ var _weak_label: Label
 var _half_h := 16.0        # 缩放后精灵半高：影子/名牌的定位基准
 var _bob_phase := 0.0      # 待机呼吸的相位错开，避免全场整齐划一
 var _highlighted := false
+var _phase_notch: ColorRect  # 二段血条的分段刻度（Boss 专用）
+var _hp_fill: StyleBoxFlat
 
 
 func _init() -> void:
@@ -34,6 +36,7 @@ func _init() -> void:
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Color("c0504d")
 	fill.set_corner_radius_all(2)
+	_hp_fill = fill
 	_hp_bar.add_theme_stylebox_override("background", bg)
 	_hp_bar.add_theme_stylebox_override("fill", fill)
 	add_child(_hp_bar)
@@ -106,6 +109,28 @@ func _draw() -> void:
 func set_hp(ratio: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(_hp_bar, "value", clampf(ratio, 0.0, 1.0), 0.25)
+
+
+## 二段血条：血量刻度上立一道分段金线，暗示 Boss 还有第二管血。
+## 分段线跟随血条定位（setup 的名牌组排布：血条在 _half_h+30 处）。
+func set_phase_marker(threshold: float) -> void:
+	_phase_notch = ColorRect.new()
+	_phase_notch.color = Color("ffd166")
+	_phase_notch.size = Vector2(3, 12)
+	_phase_notch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_phase_notch.position = Vector2(-70 + 110.0 * clampf(threshold, 0.05, 0.95) - 1.5, _half_h + 28.0)
+	add_child(_phase_notch)
+
+
+## 进入二阶段：血条转猩红、分段线消失、通体泛红压出狂化压迫感。
+func enter_phase2() -> void:
+	if _phase_notch != null:
+		_phase_notch.queue_free()
+		_phase_notch = null
+	_hp_fill.bg_color = Color("d8304a")
+	var tw := create_tween()
+	tw.tween_property(self, "modulate", Color(1.25, 0.85, 0.85), 0.2)
+	tw.tween_property(self, "modulate", Color(1.12, 0.94, 0.94), 0.3)
 
 
 func set_shield(current: int, maximum: int) -> void:

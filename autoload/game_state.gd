@@ -28,6 +28,9 @@ var battle_return_scene: String = ""
 var next_spawn := Vector2i(-1, -1)
 var return_position := Vector2.ZERO
 var has_return_position := false
+## 上一张地图的野性状态（跨区过场动画的方向判定，见 MapBase._maybe_zone_transition）。
+var prev_map_wild := false
+var has_prev_wildness := false
 
 
 func _ready() -> void:
@@ -56,6 +59,7 @@ func new_game() -> void:
 
 ## 剧情入队。
 func join_member(member: CharacterState) -> void:
+	member.full_restore()  # 入队即以巅峰状态并肩（试玩反馈：入队不应带伤）
 	party.append(member)
 	GameEvents.party_status_changed.emit()
 

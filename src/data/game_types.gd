@@ -7,6 +7,10 @@ enum Element { FIRE, ICE, LIGHTNING, WIND, EARTH }
 
 enum Stage { BEGINNER, INTERMEDIATE, ADVANCED, SUPER }
 
+## 妖魔等阶（对照 docs/world.md「妖魔等级」，与玩家 Stage 同尺度：
+## 初阶≈奴仆级、中阶≈战将级、高阶≈统领级、超阶≈君主级）。
+enum MonsterTier { SERVANT, COMMANDER, OVERLORD, MONARCH }
+
 ## 每阶的星级数（一星~三星）。
 const STARS_PER_STAGE := 3
 ## 每个星级需点亮的星子数（原著设定待核对：7 颗星子连成星轨）。
@@ -32,6 +36,7 @@ const ELEMENT_COLORS := {
 
 const STAGE_NAMES := ["初阶", "中阶", "高阶", "超阶"]
 const STAR_NAMES := ["一星", "二星", "三星"]
+const MONSTER_TIER_NAMES := ["奴仆级", "战将级", "统领级", "君主级"]
 
 
 static func element_name(element: int) -> String:
@@ -44,6 +49,10 @@ static func element_color(element: int) -> Color:
 
 static func stage_name(stage: int) -> String:
 	return STAGE_NAMES[clampi(stage, 0, STAGE_NAMES.size() - 1)]
+
+
+static func monster_tier_name(tier: int) -> String:
+	return MONSTER_TIER_NAMES[clampi(tier, 0, MONSTER_TIER_NAMES.size() - 1)]
 
 
 static func star_name(star: int) -> String:

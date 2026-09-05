@@ -30,6 +30,10 @@ func start_cell() -> Vector2i:
 	return SPAWN_CELL
 
 
+func map_display_name() -> String:
+	return "天澜高中·决斗台"
+
+
 func bgm_name() -> String:
 	return "battle"
 

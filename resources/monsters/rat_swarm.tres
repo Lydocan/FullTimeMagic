@@ -8,17 +8,17 @@ id = "rat_swarm"
 monster_name = "鼠潮"
 max_hp = 45
 speed = 7
-attack = 9
+attack = 11
 weaknesses = [0]
 xp_value = 2
 gold_value = 6
 texture_path = "res://assets/images/monster_rat.png"
 sprite_scale = 2.6
-attack_power = 11
+attack_power = 14
 skills = [{
 "chance": 0.25,
 "name": "撕咬",
-"power": 14,
+"power": 18,
 "status": "",
 "status_chance": 0.0,
 "target_all": false

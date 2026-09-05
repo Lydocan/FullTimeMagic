@@ -45,6 +45,10 @@ func map_rows() -> Array:
 	return MAP
 
 
+func map_display_name() -> String:
+	return "博城"
+
+
 func bgm_name() -> String:
 	return "town"
 
