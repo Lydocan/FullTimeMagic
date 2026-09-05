@@ -75,39 +75,43 @@ func _gen_monsters() -> void:
 		"max_hp": 45, "speed": 7, "attack": 11, "defense": 2, "shield": 1,
 		"weaknesses": [GameTypes.Element.FIRE],
 		"xp_value": 2, "gold_value": 6,
+		"drop_id": "yuelu", "drop_chance": 0.25,  # 鼠群巢穴常翻出遗落的草药
 		"texture_path": "res://assets/images/monster_rat.png", "sprite_scale": 2.6,
 		"attack_power": 14,
 		"skills": [{"name": "撕咬", "power": 18, "chance": 0.25,
 			"target_all": false, "status": "", "status_chance": 0.0}],
 	})
 	_monster({
-		"id": "one_eye_wolf", "monster_name": "独眼魔狼", "tier": GameTypes.MonsterTier.COMMANDER,
+		"id": "one_eye_wolf", "monster_name": "独眼魔狼", "tier": GameTypes.MonsterTier.SERVANT,
 		"element": GameTypes.Element.LIGHTNING,
 		"max_hp": 130, "speed": 10, "attack": 13, "defense": 5, "shield": 2,
 		"weaknesses": [GameTypes.Element.LIGHTNING],
 		"xp_value": 8, "gold_value": 18,
 		"essence_id": "essence_lightning", "essence_chance": 0.4,
+		"drop_id": "mojingjie", "drop_chance": 0.2,  # 雷魔狼体内凝出的结晶
 		"texture_path": "res://assets/images/monster_wolf.png", "sprite_scale": 2.2,
 		"attack_power": 18,
 		"skills": [{"name": "独眼魔光", "power": 23, "chance": 0.25,
 			"target_all": false, "status": "paralyze", "status_chance": 0.6}],
 	})
 	_monster({
-		"id": "wolf_alpha", "monster_name": "独眼魔狼王", "tier": GameTypes.MonsterTier.OVERLORD,
+		"id": "wolf_alpha", "monster_name": "独眼魔狼王", "tier": GameTypes.MonsterTier.COMMANDER,
 		"element": GameTypes.Element.LIGHTNING,
-		"max_hp": 440, "speed": 11, "attack": 15, "defense": 7, "shield": 3,
+		"max_hp": 280, "speed": 11, "attack": 15, "defense": 7, "shield": 3,
 		"weaknesses": [GameTypes.Element.LIGHTNING, GameTypes.Element.FIRE],
 		"xp_value": 30, "gold_value": 70,
 		"essence_id": "essence_lightning", "essence_chance": 1.0,
-		# 林地这只为先遣的虚弱分身（suppression_scale 0.5）：统领级对初阶
+		"drop_id": "fuhuo_yumao", "drop_chance": 0.5,  # 王级稀有掉落
+		"portrait_path": "res://assets/images/portrait_wolf_king.png",
+		# 林地这只为先遣的虚弱分身（suppression_scale 0.5）：战将级对初阶
 		# 仍需可攻略——完整体的压制将在博城之变（M3.3）兑现
 		"suppression_scale": 0.5,
-		# 狼王独占贴图（双角+异变赤纹）：统领级不能与战将级共用一张脸，
+		# 狼王独占贴图（双角+异变赤纹）：与战将级狼群同阶但体型威压全开，
 		# 2.6 倍下的 132x86 画布 ≈ 屏上 343x224，体积压过在场所有单位
 		"texture_path": "res://assets/images/monster_wolf_king.png", "sprite_scale": 2.6,
 		"attack_power": 24,
-		# 二阶段：半血狂化，攻防再上台阶
-		"phase_threshold": 0.5, "phase2_attack": 5, "phase2_defense": 3,
+		# 双血条：第一管 280 打空 → 狂化换上第二管 200，攻防大幅强化
+		"phase2_hp": 200, "phase2_attack": 5, "phase2_defense": 3,
 		"phase2_name": "狼王狂化",
 		"skills": [
 			{"name": "狼王咆哮", "power": 25, "chance": 0.3,
@@ -119,14 +123,15 @@ func _gen_monsters() -> void:
 	_monster({
 		"id": "yu_ang", "monster_name": "宇昂", "tier": GameTypes.MonsterTier.COMMANDER,
 		"element": GameTypes.Element.FIRE,
-		"max_hp": 380, "speed": 10, "attack": 14, "defense": 6, "shield": 4,
+		"max_hp": 240, "speed": 10, "attack": 14, "defense": 6, "shield": 4,
 		"weaknesses": [GameTypes.Element.LIGHTNING],
 		"xp_value": 20, "gold_value": 80,
 		# 人类对手不受等级压制（毕业决斗是技能对等的镜像局，初阶莫凡打赢
-		# 战将级宇昂是原著定局）；半血进入二阶段，攻防强化
+		# 战将级宇昂是原著定局）；双血条：第一管打空后炎纹觉醒，攻防强化
 		"suppression_scale": 0.0,
-		"phase_threshold": 0.5, "phase2_attack": 4, "phase2_defense": 3,
+		"phase2_hp": 140, "phase2_attack": 4, "phase2_defense": 3,
 		"phase2_name": "炎纹觉醒",
+		"portrait_path": "res://assets/images/portrait_yu_ang.png",
 		"texture_path": "res://assets/images/char_yuang.png", "sprite_scale": 2.6,
 		"attack_power": 18,
 		"skills": [

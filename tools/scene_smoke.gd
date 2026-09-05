@@ -50,8 +50,41 @@ func _ready() -> void:
 	ok = il_ok and ok
 	var bt_ok: bool = await _test_breakthrough_button_refresh()
 	ok = bt_ok and ok
+	var me_ok: bool = await _test_menu_during_entry()
+	ok = me_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
+
+
+## 入场窗口内开菜单，入场收尾不得把人物解锁（曾致菜单中人物仍可行走、
+## 方向键同时驱动菜单与角色——试玩反馈的移动穿透）。
+func _test_menu_during_entry() -> bool:
+	print("[入场窗口菜单锁]")
+	var ok := true
+	GameState.new_game()
+	for f in ["prologue_intro_done", "prologue_awaken_done", "prologue_done", "prologue_tutorial_done"]:
+		GameState.flags[f] = true
+	var city: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(city)
+	city._open_bag()  # 入场收尾（约 1.2s 后）触发前先开菜单
+	await get_tree().create_timer(2.5).timeout
+	var player: Node2D = city.get("player")
+	var still_locked: bool = city._menu != null and player.input_enabled == false
+	if still_locked:
+		print("  PASS  入场收尾不解锁菜单中的人物")
+	else:
+		printerr("  FAIL  菜单打开期间人物被入场收尾解锁")
+		ok = false
+	city._close_rest_menu()
+	await get_tree().process_frame
+	if player.input_enabled:
+		print("  PASS  关闭菜单后恢复正常行走")
+	else:
+		printerr("  FAIL  关闭菜单后人物仍被锁")
+		ok = false
+	city.free()
+	await get_tree().process_frame
+	return ok
 
 
 ## 突破按钮状态必须随精魄存量刷新：曾停留在旧「持有 N」，精魄用完

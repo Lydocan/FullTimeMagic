@@ -26,6 +26,14 @@ const COL_HEAL := Color("7dde8a")
 ## 每回合行动者积攒的星辉上限（出招时消耗，1 点 = 法术 +1 段）。
 const MAX_STARS := 3
 
+## 战斗立绘：成员 id → 立绘贴图（妖魔立绘走 MonsterData.portrait_path）。
+## 出招时对应一侧的立绘滑入切换（左我方 / 右敌方）。
+const PARTY_PORTRAITS := {
+	"mo_fan": "res://assets/images/portrait_mo_fan.png",
+	"mu_ningxue": "res://assets/images/portrait_mu_ningxue.png",
+}
+const PORTRAIT_SIZE := Vector2(144, 216)  # 48x72 立绘的 3x 整数缩放
+
 var _party: Array[CharacterState] = []
 var _party_actors: Array[BattleActorScript] = []
 var _enemies: Array[Dictionary] = []  # {data, hp, shield, broken, burn, paralyzed, discovered, actor}
@@ -59,6 +67,9 @@ var _target_hint: Label
 var _fx_layer: CanvasLayer
 var _vignette: TextureRect
 var _shake_amt := 0.0
+# 战斗立绘：出招者的大幅形象（左我方 / 右敌方）
+var _portrait_left: TextureRect
+var _portrait_right: TextureRect
 
 
 func _ready() -> void:
@@ -128,8 +139,8 @@ func _spawn_enemies() -> void:
 		actor.setup(load(data.texture_path), title, data.sprite_scale)
 		actor.position = Vector2(640 + (i - (ids.size() - 1) * 0.5) * 220.0, 210)
 		actor.set_weaknesses(data.weaknesses, [])
-		if data.phase_threshold > 0.0:
-			actor.set_phase_marker(data.phase_threshold)
+		if data.phase2_hp > 0:
+			actor.set_phase_marker()
 		add_child(actor)
 		# 登场演出：自上方压入场 + 落地震屏，错峰登场压出压迫感
 		var target := actor.position
@@ -165,7 +176,52 @@ func _spawn_party_actors() -> void:
 func _build_ui() -> void:
 	_build_gradation()
 	_build_vignette()
+	_build_portraits()
+	_build_ui_layer()
 
+
+## —— 战斗立绘：出招者的大幅形象贴在画面两侧，随行动切换 ——
+
+func _build_portraits() -> void:
+	_portrait_left = _make_portrait(Vector2(18, 320))
+	_portrait_right = _make_portrait(Vector2(1280.0 - PORTRAIT_SIZE.x - 18.0, 300))
+
+
+func _make_portrait(pos: Vector2) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.size = PORTRAIT_SIZE
+	rect.position = pos
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.modulate.a = 0.0
+	add_child(rect)
+	return rect
+
+
+## 切换一侧立绘：换贴图 + 从屏边滑入；path 为空则隐去（无立绘的单位）。
+func _show_portrait(rect: TextureRect, path: String, from_left: bool) -> void:
+	if not ResourceLoader.exists(path):
+		var tw := create_tween()
+		tw.tween_property(rect, "modulate:a", 0.0, 0.2)
+		return
+	var tex: Texture2D = load(path)
+	var same := rect.texture == tex and rect.modulate.a > 0.9
+	rect.texture = tex
+	var home_x: float = rect.position.x
+	if same:
+		return  # 同一单位连续行动：不再重复滑入
+	var off := Vector2(-70.0, 0) if from_left else Vector2(70.0, 0)
+	rect.position = Vector2(home_x, rect.position.y) + off
+	rect.modulate.a = 0.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(rect, "position:x", home_x, 0.22).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(rect, "modulate:a", 1.0, 0.18)
+
+
+## UI 层：行动顺序铭牌 / 操作提示 / 战报行 / 底部指令台。
+func _build_ui_layer() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 10
 	add_child(layer)
@@ -803,6 +859,7 @@ func _end_of_round() -> void:
 		if e["hp"] > 0 and e["burn"] > 0:
 			e["burn"] -= 1
 			e["hp"] = maxi(e["hp"] - 8, 0)
+			_check_phase2(e)  # 灼烧烧空第一管同样接上第二管
 			_log("%s 被燃烧灼伤（8 伤害）。" % e["data"].monster_name)
 			if e["hp"] <= 0:
 				e["actor"].fade_out()
@@ -818,6 +875,7 @@ func _begin_command(m: CharacterState) -> void:
 	_member = m
 	_phase = Phase.COMMAND
 	_boost = 0
+	_show_portrait(_portrait_left, PARTY_PORTRAITS.get(m.id, ""), true)
 	_show_command(m)
 
 
@@ -1191,20 +1249,29 @@ func _enemy_defense(e: Dictionary) -> int:
 	return d.defense + (d.phase2_defense if e.get("phase2", false) else 0)
 
 
-## 二阶段检测：血线跌破阈值触发强化，演出与数值同步切换。
+## 二阶段（双血条）：第一管血打空 → 不死亡，换上第二管满血条并强化。
+## 时机由调用方保证：任何把 hp 压到 0 的结算（直伤/灼烧）之后立刻调用。
 func _check_phase2(e: Dictionary) -> void:
 	var d: MonsterData = e["data"]
-	if e.get("phase2", false) or d.phase_threshold <= 0.0:
+	if e.get("phase2", false) or d.phase2_hp <= 0:
 		return
-	if e["hp"] > 0 and e["hp"] <= int(d.max_hp * d.phase_threshold):
+	if e["hp"] <= 0:
 		e["phase2"] = true
+		e["hp"] = d.phase2_hp
 		e["actor"].enter_phase2()
+		e["actor"].set_hp(1.0)
 		_stamp(d.phase2_name if d.phase2_name != "" else "二 阶 段", Color("ff5a4a"))
 		_flash_screen(Color(0.75, 0.12, 0.08, 0.42), 0.45)
 		_shake(12.0)
 		Audio.play_sfx("break")
-		_log("◆ %s 陷入「%s」！攻击与防御大幅强化！" % [
+		_log("◆ %s 的第一管血被打空——「%s」！换上新血条，攻击与防御大幅强化！" % [
 			d.monster_name, d.phase2_name if d.phase2_name != "" else "二阶段"])
+
+
+## 妖魔当前血条上限（二阶段后为第二管血量）。
+func _enemy_max_hp(e: Dictionary) -> int:
+	var d: MonsterData = e["data"]
+	return d.phase2_hp if e.get("phase2", false) and d.phase2_hp > 0 else d.max_hp
 
 
 func _hit_enemy(user: CharacterState, e: Dictionary, s: SpellData) -> void:
@@ -1265,6 +1332,7 @@ func _enemy_act(e: Dictionary) -> void:
 	_phase = Phase.ENEMY
 	await _pause(0.3)
 	var d: MonsterData = e["data"]
+	_show_portrait(_portrait_right, d.portrait_path, false)
 	# 技能判定：普攻兜底，技能表逐技掷骰先中先用（小怪一技，Boss 多技）
 	var use_skill := false
 	var skill: Dictionary = {"name": "撞击", "power": d.attack_power, "chance": 1.0,
@@ -1343,16 +1411,21 @@ func _win() -> void:
 	var xp_each := 0
 	var gold := 0
 	var essences: Array = []
+	var drops: Array = []  # 概率掉落的物品（每个 id 只展示一次，数量入包累计）
 	for e in _enemies:
 		xp_each += e["data"].xp_value
 		gold += e["data"].gold_value
 		if e["data"].essence_id != "" and randf() < e["data"].essence_chance:
 			essences.append(e["data"].essence_id)
+		if e["data"].drop_id != "" and randf() < e["data"].drop_chance:
+			GameState.add_item(e["data"].drop_id)
+			if not drops.has(e["data"].drop_id):
+				drops.append(e["data"].drop_id)
 	var summary := GameState.grant_battle_rewards(xp_each, gold, essences, _party)
 	if GameState.pending_flag != "":
 		GameState.flags[GameState.pending_flag] = true
 		GameState.pending_flag = ""
-	_show_result(true, xp_each, gold, essences, summary["events"])
+	_show_result(true, xp_each, gold, essences, summary["events"], drops)
 
 
 func _lose() -> void:
@@ -1365,6 +1438,9 @@ func _lose() -> void:
 
 
 func _finish(victory: bool, fled: bool) -> void:
+	for p in [_portrait_left, _portrait_right]:
+		var tw := create_tween()
+		tw.tween_property(p, "modulate:a", 0.0, 0.25)
 	GameEvents.battle_finished.emit(victory, fled)
 	GameState.pending_party_ids = []
 	var target: String = GameState.battle_return_scene
@@ -1374,7 +1450,7 @@ func _finish(victory: bool, fled: bool) -> void:
 	get_tree().change_scene_to_file(target)
 
 
-func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, events: Array) -> void:
+func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, events: Array, drops: Array = []) -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var center := CenterContainer.new()
@@ -1399,6 +1475,9 @@ func _show_result(victory: bool, xp_each: int, gold: int, essences: Array, event
 		box.add_child(_result_label("每位成员修为 +%d    金币 +%d" % [xp_each, gold]))
 		for eid in essences:
 			box.add_child(_result_label("获得精魄：%s" % eid))
+		for did in drops:
+			var item: ItemData = GameData.load_item(did)
+			box.add_child(_result_label("获得物品：%s" % (item.item_name if item != null else did)))
 		for entry in events:
 			var ev: Dictionary = entry["ev"]
 			var m_name: String = entry["member"]
@@ -1476,7 +1555,7 @@ func _sync_all() -> void:
 		actor.visible = m.hp > 0
 	for e in _enemies:
 		var a: BattleActorScript = e["actor"]
-		a.set_hp(float(e["hp"]) / e["data"].max_hp)
+		a.set_hp(float(e["hp"]) / _enemy_max_hp(e))
 		a.set_shield(e["shield"], e["data"].shield)
 	if _phase == Phase.COMMAND or _phase == Phase.SPELL_SELECT:
 		_update_member_panel(_member)

@@ -28,6 +28,12 @@ extends Resource
 ## 掉落精魄 id（"" 为不掉落），命名约定 essence_<元素>。
 @export var essence_id: String = ""
 @export_range(0.0, 1.0) var essence_chance: float = 0.0
+## 概率掉落的物品 id（"" 为不掉落）与掉率：不同妖魔掉不同东西，
+## 战斗胜利时掷骰入背包（见 battle.gd 结算）。
+@export var drop_id: String = ""
+@export_range(0.0, 1.0) var drop_chance: float = 0.0
+## 战斗立绘（大图，出招时在画面两侧切换展示；"" 为无立绘）。
+@export var portrait_path: String = ""
 @export var texture_path: String = ""
 @export var sprite_scale: float = 1.0
 ## 普攻威力（技能未命中时的兜底攻击「撞击」）。
@@ -36,9 +42,9 @@ extends Resource
 ## {"name", "power", "chance"(发动概率，逐技掷骰先中先用), "target_all",
 ##  "status"("burn"/"paralyze"/""), "status_chance"(命中后附加状态的概率)}
 @export var skills: Array = []
-## —— 二阶段（Boss/关键人物）：血量降到 phase_threshold 以下时进入——
-## 攻击/防御获得加成，血条分段变色并盖章演出。0 = 无二阶段。
-@export_range(0.0, 1.0) var phase_threshold: float = 0.0
+## —— 二阶段（Boss/关键人物）：双血条——第一管血打空后不死亡，
+## 换上第二管满血条（phase2_hp）并强化攻防，盖章演出。0 = 无二阶段。
+@export var phase2_hp: int = 0
 @export var phase2_attack: int = 0
 @export var phase2_defense: int = 0
 @export var phase2_name: String = ""

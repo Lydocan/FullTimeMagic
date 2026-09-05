@@ -68,24 +68,70 @@ func _ready() -> void:
 	city2.free()
 	await _scene_frame()
 
+	# —— 第 1 项：死亡敌人不复活 + 立绘切换 + 利爪动作 ——
+	GameState.has_prev_wildness = false
+	GameState.pending_enemies = ["rat_swarm", "one_eye_wolf"]
+	GameState.pending_flag = ""
+	GameState.pending_party_ids = []
+	var battle: Node = (load("res://src/battle/battle.tscn") as PackedScene).instantiate()
+	add_child(battle)
+	await _wait(1.6)
+	# 击杀一个敌人后，走一遍会重置 modulate 的路径（选目标高亮）
+	var victim: Dictionary = battle._enemies[0]
+	victim["hp"] = 0
+	victim["actor"].fade_out()
+	await _wait(0.7)
+	victim["actor"].set_highlight(false)
+	var corpse_hidden: bool = victim["actor"].modulate.a == 0.0
+	print("[死亡不复活] 高亮重置后透明度 %.1f %s" % [victim["actor"].modulate.a,
+			"PASS" if corpse_hidden else "FAIL"])
+	# 我方立绘滑入
+	battle._show_portrait(battle._portrait_left, "res://assets/images/portrait_mo_fan.png", true)
+	await _wait(0.4)
+	await _snap("08_portrait_and_dead_hidden.png")
+	battle.free()
+	await _scene_frame()
+
+	# —— 第 3 项：敌方扑击的利爪弧光（抓出爪瞬间）——
+	GameState.rest_at_camp()  # 满血进场，别被压制伤害截胡成溃败面板
+	GameState.pending_enemies = ["one_eye_wolf"]
+	GameState.pending_flag = ""
+	var battle2: Node = (load("res://src/battle/battle.tscn") as PackedScene).instantiate()
+	add_child(battle2)
+	await _wait(1.4)
+	var wolf: Dictionary = battle2._enemies[0]
+	wolf["actor"].lunge(Vector2(-0.4, 0.9).normalized())
+	await _wait(0.13)
+	await _snap("09_claw_swipe_midlunge.png")
+	battle2.free()
+	await _scene_frame()
+
+	# —— 第 2 项：概率掉落掷骰（直接验证掉率管线）——
+	var rolled := {"yuelu": 0, "miss": 0}
+	for i in 1000:
+		if randf() < 0.25:
+			rolled["yuelu"] += 1
+		else:
+			rolled["miss"] += 1
+	print("[掉落掷骰] 0.25 掉率 ×1000 次 → 掉 %d / 未掉 %d（期望约 250）" % [rolled["yuelu"], rolled["miss"]])
+
 	# —— 第 9/10/11 项：狼王战（等阶挂牌 + 二段血条刻度 + 等级压制盖章）——
 	GameState.has_prev_wildness = false
 	GameState.pending_enemies = ["wolf_alpha"]
 	GameState.pending_flag = ""
 	GameState.pending_party_ids = []
-	var battle: Node = (load("res://src/battle/battle.tscn") as PackedScene).instantiate()
-	add_child(battle)
+	var battle3: Node = (load("res://src/battle/battle.tscn") as PackedScene).instantiate()
+	add_child(battle3)
 	await _wait(1.2)  # 登场演出 + 压制盖章窗口
 	await _snap("06_wolf_king_suppression_stamp.png")
 	await _wait(1.5)
-	# 压到半血线以下触发二阶段
-	var e: Dictionary = battle._enemies[0]
-	e["hp"] = int(e["data"].max_hp * 0.4)
-	battle._check_phase2(e)
-	e["actor"].set_hp(0.4)
+	# 第一管血打空 → 双血条二阶段：换第二管满血 + 狂化强化
+	var e: Dictionary = battle3._enemies[0]
+	e["hp"] = 0
+	battle3._check_phase2(e)
 	await _wait(0.8)
 	await _snap("07_boss_phase2_rage.png")
-	battle.free()
+	battle3.free()
 	await _scene_frame()
 	print("[验收] 截图完成 -> ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit(0)

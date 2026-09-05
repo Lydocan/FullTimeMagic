@@ -6,8 +6,6 @@
 script = ExtResource("1_adn4q")
 id = "one_eye_wolf"
 monster_name = "独眼魔狼"
-tier = 1
-tier_name = "战将级"
 element = 2
 max_hp = 130
 speed = 10
@@ -18,6 +16,8 @@ weaknesses = [2]
 gold_value = 18
 essence_id = "essence_lightning"
 essence_chance = 0.4
+drop_id = "mojingjie"
+drop_chance = 0.2
 texture_path = "res://assets/images/monster_wolf.png"
 sprite_scale = 2.2
 attack_power = 18

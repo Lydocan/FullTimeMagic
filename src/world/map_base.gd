@@ -280,7 +280,12 @@ func _apply_entry_position() -> void:
 			break
 	await get_tree().create_timer(1.0).timeout
 	_cooling = false
-	player.input_enabled = true
+	# 入场收尾不得覆盖菜单/事件的锁：入场窗口内开了菜单（背包/系统菜单
+	# 不经 input_enabled 检查即可打开），这里的无条件解锁会把菜单里的
+	# 人物放出来——方向键同时驱动菜单和行走（试玩反馈的移动穿透 bug）。
+	# 菜单关闭时 _close_rest_menu 自会解锁。
+	if _menu == null and not _event_running:
+		player.input_enabled = true
 
 
 ## —— 安全区 / 野外区 ——
@@ -807,10 +812,10 @@ func _open_rest_menu() -> void:
 	for el in mofan.elements:
 		var el_i: int = el
 		var btn := Button.new()
-		btn.text = "修炼·%s系（+15 修为，设为主修）" % GameTypes.element_name(el_i)
+		btn.text = "修炼·%s系（+5 修为，设为主修）" % GameTypes.element_name(el_i)
 		btn.pressed.connect(func() -> void:
 			mofan.main_element = el_i
-			_apply_cultivate(mofan, el_i, 15)
+			_apply_cultivate(mofan, el_i, 5)
 		)
 		box.add_child(btn)
 		btn.set_meta("cultivate_element", el_i)
@@ -1111,10 +1116,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _menu != null and event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		_close_rest_menu()
-	elif _menu == null and not _event_running and event.is_action_pressed("inventory"):
+	elif _menu == null and not _event_running and not _cooling and event.is_action_pressed("inventory"):
 		get_viewport().set_input_as_handled()
 		_open_bag()
-	elif _menu == null and not _event_running and event.is_action_pressed("pause"):
+	elif _menu == null and not _event_running and not _cooling and event.is_action_pressed("pause"):
 		get_viewport().set_input_as_handled()
 		_open_system_menu()
 

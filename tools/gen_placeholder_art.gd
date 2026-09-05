@@ -12,6 +12,7 @@ func _initialize() -> void:
 	rng.seed = 20260831
 	_tiles()
 	_characters()
+	_portraits()
 	_monsters()
 	_battle_bg()
 	_campfire()
@@ -106,97 +107,383 @@ func _tiles() -> void:
 	_save(img, "tiles_proto.png")
 
 
-## 24x32 人物占位（莫凡 / 穆宁雪）。
+## 24x32 人物占位。造型要点：发丝双色分层、眼睛有眼白+高光点、
+## 衣服带衣褶阴影与领口、双脚分开——去掉"方块人"的呆气。
 func _characters() -> void:
+	# 莫凡：微乱短发 + 高领蓝衣，右手握拳侧身
 	var fan := _img(24, 32)
-	_rect(fan, 7, 2, 10, 6, Color("2a2a35"))   # 头发
-	_rect(fan, 8, 7, 8, 5, Color("e8c39a"))    # 脸
-	_rect(fan, 9, 8, 2, 1, Color("303038"))    # 眼
-	_rect(fan, 13, 8, 2, 1, Color("303038"))
-	_rect(fan, 6, 12, 12, 10, Color("3b4a8c")) # 上衣
-	_rect(fan, 4, 13, 2, 7, Color("324077"))   # 左臂
-	_rect(fan, 18, 13, 2, 7, Color("324077"))
-	_rect(fan, 8, 22, 3, 7, Color("2c2c34"))   # 腿
-	_rect(fan, 13, 22, 3, 7, Color("2c2c34"))
-	_rect(fan, 8, 29, 3, 2, Color("1d1d24"))   # 鞋
+	_rect(fan, 7, 2, 10, 6, Color("2a2a35"))
+	_rect(fan, 6, 3, 2, 4, Color("2a2a35"))      # 侧发翘起
+	_rect(fan, 16, 3, 2, 3, Color("2a2a35"))
+	_rect(fan, 8, 2, 7, 2, Color("3d3d4d"))      # 发顶高光
+	_rect(fan, 8, 7, 8, 5, Color("e8c39a"))
+	_rect(fan, 8, 7, 8, 1, Color("d4a884"))      # 发影投在额头
+	_rect(fan, 9, 9, 2, 2, Color("e8e8f0"))      # 眼白
+	_rect(fan, 10, 9, 1, 2, Color("303038"))     # 瞳
+	_rect(fan, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(fan, 14, 9, 1, 2, Color("303038"))
+	_rect(fan, 10, 9, 1, 1, Color("ffffff"))     # 眼高光
+	_rect(fan, 14, 9, 1, 1, Color("ffffff"))
+	_rect(fan, 9, 8, 6, 1, Color("303038"))      # 剑眉
+	_rect(fan, 10, 12, 4, 1, Color("c9946a"))    # 嘴
+	_rect(fan, 6, 13, 12, 9, Color("3b4a8c"))
+	_rect(fan, 6, 13, 12, 2, Color("46569e"))    # 高领
+	_rect(fan, 11, 15, 2, 7, Color("324077"))    # 衣襟
+	_rect(fan, 7, 20, 10, 1, Color("2c3a70"))    # 下摆阴影
+	_rect(fan, 4, 14, 2, 6, Color("324077"))
+	_rect(fan, 18, 14, 3, 5, Color("324077"))    # 右臂前摆
+	_rect(fan, 19, 19, 2, 2, Color("e8c39a"))    # 握拳手
+	_rect(fan, 8, 22, 3, 7, Color("2c2c34"))
+	_rect(fan, 13, 22, 3, 7, Color("26262e"))
+	_rect(fan, 7, 29, 4, 2, Color("1d1d24"))
 	_rect(fan, 13, 29, 3, 2, Color("1d1d24"))
 	_save(fan, "char_mofan.png")
 
+	# 穆宁雪：银发披肩 + 冰蓝长裙，发丝垂到腰际
 	var xue := _img(24, 32)
-	_rect(xue, 5, 2, 14, 10, Color("cfd8e6"))  # 银白长发
-	_rect(xue, 8, 7, 8, 5, Color("f2dcc0"))    # 脸
-	_rect(xue, 9, 8, 2, 1, Color("4a6d9c"))    # 眼
-	_rect(xue, 13, 8, 2, 1, Color("4a6d9c"))
-	_rect(xue, 6, 12, 12, 12, Color("9cc4e8")) # 冰蓝裙
-	_rect(xue, 7, 24, 3, 6, Color("7fa8cf"))   # 裙摆
-	_rect(xue, 14, 24, 3, 6, Color("7fa8cf"))
-	_rect(xue, 8, 29, 3, 2, Color("5d84ad"))
-	_rect(xue, 13, 29, 3, 2, Color("5d84ad"))
+	_rect(xue, 5, 2, 14, 9, Color("cfd8e6"))
+	_rect(xue, 6, 2, 10, 2, Color("e8f0f8"))     # 发顶高光
+	_rect(xue, 4, 8, 3, 14, Color("b8c8dc"))     # 左发披至腰
+	_rect(xue, 17, 8, 3, 14, Color("b8c8dc"))
+	_rect(xue, 4, 20, 3, 2, Color("a4b8d0"))     # 发尾层次
+	_rect(xue, 17, 20, 3, 2, Color("a4b8d0"))
+	_rect(xue, 8, 7, 8, 5, Color("f2dcc0"))
+	_rect(xue, 8, 7, 8, 1, Color("d8c0a8"))
+	_rect(xue, 9, 9, 2, 2, Color("e8e8f0"))
+	_rect(xue, 10, 9, 1, 2, Color("4a6d9c"))
+	_rect(xue, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(xue, 14, 9, 1, 2, Color("4a6d9c"))
+	_rect(xue, 10, 9, 1, 1, Color("ffffff"))
+	_rect(xue, 14, 9, 1, 1, Color("ffffff"))
+	_rect(xue, 10, 12, 4, 1, Color("c98c8c"))    # 嘴
+	_rect(xue, 6, 12, 12, 10, Color("9cc4e8"))
+	_rect(xue, 6, 12, 12, 2, Color("b0d4f0"))    # 领口雪白
+	_rect(xue, 11, 14, 2, 8, Color("84aed4"))    # 衣襟
+	_rect(xue, 6, 20, 12, 2, Color("8ab4dc"))    # 束腰
+	_rect(xue, 5, 22, 14, 4, Color("9cc4e8"))    # 裙摆展开
+	_rect(xue, 4, 26, 16, 3, Color("7fa8cf"))
+	_rect(xue, 4, 29, 16, 1, Color("6d97be"))    # 裙摆阴影
 	_save(xue, "char_muningxue.png")
 
+	# 唐月：黑长直披肩 + 火红外套
 	var tang := _img(24, 32)
-	_rect(tang, 5, 1, 14, 12, Color("1f1f28"))  # 黑长发
-	_rect(tang, 8, 7, 8, 5, Color("eec9a0"))    # 脸
-	_rect(tang, 9, 8, 2, 1, Color("a03030"))    # 眼
-	_rect(tang, 13, 8, 2, 1, Color("a03030"))
-	_rect(tang, 5, 12, 3, 12, Color("1f1f28"))  # 发披肩
-	_rect(tang, 16, 12, 3, 12, Color("1f1f28"))
-	_rect(tang, 6, 12, 12, 11, Color("b03434")) # 火红外套
-	_rect(tang, 11, 12, 2, 11, Color("8c2626")) # 衣襟
-	_rect(tang, 4, 13, 2, 7, Color("9c2c2c"))   # 臂
+	_rect(tang, 5, 1, 14, 11, Color("1f1f28"))
+	_rect(tang, 6, 1, 10, 2, Color("343444"))    # 发顶高光
+	_rect(tang, 4, 9, 3, 16, Color("1f1f28"))
+	_rect(tang, 17, 9, 3, 16, Color("1f1f28"))
+	_rect(tang, 4, 22, 3, 3, Color("16161e"))
+	_rect(tang, 17, 22, 3, 3, Color("16161e"))
+	_rect(tang, 8, 7, 8, 5, Color("eec9a0"))
+	_rect(tang, 8, 7, 8, 1, Color("c8a480"))
+	_rect(tang, 9, 9, 2, 2, Color("e8e8f0"))
+	_rect(tang, 10, 9, 1, 2, Color("a03030"))
+	_rect(tang, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(tang, 14, 9, 1, 2, Color("a03030"))
+	_rect(tang, 10, 9, 1, 1, Color("ffffff"))
+	_rect(tang, 14, 9, 1, 1, Color("ffffff"))
+	_rect(tang, 9, 8, 6, 1, Color("2a2a30"))     # 平眉
+	_rect(tang, 10, 12, 4, 1, Color("b06a5a"))
+	_rect(tang, 6, 12, 12, 11, Color("b03434"))
+	_rect(tang, 6, 12, 12, 2, Color("c44a4a"))   # 肩高光
+	_rect(tang, 11, 14, 2, 9, Color("8c2626"))
+	_rect(tang, 6, 21, 12, 1, Color("7c2020"))
+	_rect(tang, 4, 13, 2, 7, Color("9c2c2c"))
 	_rect(tang, 18, 13, 2, 7, Color("9c2c2c"))
-	_rect(tang, 8, 23, 3, 6, Color("2c2c34"))   # 腿
-	_rect(tang, 13, 23, 3, 6, Color("2c2c34"))
-	_rect(tang, 8, 29, 3, 2, Color("1d1d24"))   # 鞋
+	_rect(tang, 8, 23, 3, 6, Color("2c2c34"))
+	_rect(tang, 13, 23, 3, 6, Color("26262e"))
+	_rect(tang, 7, 29, 4, 2, Color("1d1d24"))
 	_rect(tang, 13, 29, 3, 2, Color("1d1d24"))
 	_save(tang, "char_tangyue.png")
 
+	# 宇昂：金发后梳 + 白金华服，下巴微扬
 	var yu := _img(24, 32)
-	_rect(yu, 6, 2, 12, 6, Color("d8b44a"))    # 金发
-	_rect(yu, 8, 7, 8, 5, Color("eec9a0"))     # 脸
-	_rect(yu, 9, 8, 2, 1, Color("3c4c8c"))     # 眼
-	_rect(yu, 13, 8, 2, 1, Color("3c4c8c"))
-	_rect(yu, 6, 12, 12, 10, Color("e8e4da"))  # 白华服
-	_rect(yu, 6, 12, 12, 2, Color("c8b04a"))   # 金镶边
-	_rect(yu, 11, 14, 2, 8, Color("b8a840"))   # 衣襟
-	_rect(yu, 4, 13, 2, 7, Color("d8d4ca"))    # 臂
+	_rect(yu, 6, 2, 12, 6, Color("d8b44a"))
+	_rect(yu, 7, 2, 9, 2, Color("eacc6e"))
+	_rect(yu, 5, 4, 2, 3, Color("c8a038"))       # 鬓角
+	_rect(yu, 17, 4, 2, 3, Color("c8a038"))
+	_rect(yu, 8, 7, 8, 5, Color("eec9a0"))
+	_rect(yu, 8, 7, 8, 1, Color("c8a480"))
+	_rect(yu, 9, 9, 2, 2, Color("e8e8f0"))
+	_rect(yu, 10, 9, 1, 2, Color("3c4c8c"))
+	_rect(yu, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(yu, 14, 9, 1, 2, Color("3c4c8c"))
+	_rect(yu, 10, 9, 1, 1, Color("ffffff"))
+	_rect(yu, 14, 9, 1, 1, Color("ffffff"))
+	_rect(yu, 9, 8, 6, 1, Color("8c6c2a"))       # 挑眉
+	_rect(yu, 10, 12, 4, 1, Color("b06a5a"))
+	_rect(yu, 6, 12, 12, 10, Color("e8e4da"))
+	_rect(yu, 6, 12, 12, 2, Color("c8b04a"))     # 金领
+	_rect(yu, 11, 14, 2, 8, Color("b8a840"))
+	_rect(yu, 7, 20, 10, 1, Color("c2b8a8"))     # 腰线
+	_rect(yu, 4, 13, 2, 7, Color("d8d4ca"))
 	_rect(yu, 18, 13, 2, 7, Color("d8d4ca"))
-	_rect(yu, 8, 22, 3, 7, Color("4a4a58"))    # 腿
-	_rect(yu, 13, 22, 3, 7, Color("4a4a58"))
-	_rect(yu, 8, 29, 3, 2, Color("2c2c34"))    # 鞋
+	_rect(yu, 8, 22, 3, 7, Color("4a4a58"))
+	_rect(yu, 13, 22, 3, 7, Color("40404c"))
+	_rect(yu, 7, 29, 4, 2, Color("2c2c34"))
 	_rect(yu, 13, 29, 3, 2, Color("2c2c34"))
 	_save(yu, "char_yuang.png")
 
+	# 杂货商老周：短发胡子 + 褐衫围裙
 	var zhou := _img(24, 32)
-	_rect(zhou, 7, 2, 10, 5, Color("4a3524"))  # 短发
-	_rect(zhou, 8, 7, 8, 5, Color("e8c39a"))   # 脸
-	_rect(zhou, 9, 8, 2, 1, Color("303038"))   # 眼
-	_rect(zhou, 13, 8, 2, 1, Color("303038"))
-	_rect(zhou, 8, 10, 8, 2, Color("6b5138"))  # 胡子
-	_rect(zhou, 6, 12, 12, 11, Color("7a5c38")) # 褐布衫
-	_rect(zhou, 10, 13, 4, 9, Color("c8b088")) # 围裙
-	_rect(zhou, 4, 13, 2, 7, Color("6b5030"))  # 臂
+	_rect(zhou, 7, 2, 10, 5, Color("4a3524"))
+	_rect(zhou, 7, 2, 8, 1, Color("5c4430"))
+	_rect(zhou, 8, 7, 8, 5, Color("e8c39a"))
+	_rect(zhou, 8, 7, 8, 1, Color("c8a480"))
+	_rect(zhou, 9, 9, 2, 1, Color("303038"))
+	_rect(zhou, 13, 9, 2, 1, Color("303038"))
+	_rect(zhou, 8, 10, 8, 2, Color("6b5138"))    # 胡子
+	_rect(zhou, 9, 13, 1, 1, Color("5c4430"))
+	_rect(zhou, 6, 12, 12, 11, Color("7a5c38"))
+	_rect(zhou, 6, 12, 12, 1, Color("8c6c44"))
+	_rect(zhou, 10, 13, 4, 9, Color("c8b088"))
+	_rect(zhou, 10, 13, 4, 1, Color("8a7350"))   # 围裙带
+	_rect(zhou, 4, 13, 2, 7, Color("6b5030"))
 	_rect(zhou, 18, 13, 2, 7, Color("6b5030"))
-	_rect(zhou, 8, 23, 3, 6, Color("4a4a44"))  # 腿
-	_rect(zhou, 13, 23, 3, 6, Color("4a4a44"))
-	_rect(zhou, 8, 29, 3, 2, Color("2c2c28"))  # 鞋
+	_rect(zhou, 8, 23, 3, 6, Color("4a4a44"))
+	_rect(zhou, 13, 23, 3, 6, Color("42423c"))
+	_rect(zhou, 7, 29, 4, 2, Color("2c2c28"))
 	_rect(zhou, 13, 29, 3, 2, Color("2c2c28"))
 	_save(zhou, "char_merchant.png")
 
+	# 学生：短发校服
 	var stu := _img(24, 32)
-	_rect(stu, 7, 2, 10, 5, Color("2a2a35"))   # 学生短发
-	_rect(stu, 8, 7, 8, 5, Color("e8c39a"))    # 脸
-	_rect(stu, 9, 8, 2, 1, Color("303038"))    # 眼
-	_rect(stu, 13, 8, 2, 1, Color("303038"))
-	_rect(stu, 6, 12, 12, 10, Color("4a5c7c")) # 校服
-	_rect(stu, 6, 12, 12, 2, Color("38486a"))  # 领口
-	_rect(stu, 4, 13, 2, 7, Color("41516f"))   # 臂
+	_rect(stu, 7, 2, 10, 5, Color("2a2a35"))
+	_rect(stu, 8, 2, 7, 1, Color("3d3d4d"))
+	_rect(stu, 8, 7, 8, 5, Color("e8c39a"))
+	_rect(stu, 8, 7, 8, 1, Color("d4a884"))
+	_rect(stu, 9, 9, 2, 2, Color("e8e8f0"))
+	_rect(stu, 10, 9, 1, 2, Color("303038"))
+	_rect(stu, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(stu, 14, 9, 1, 2, Color("303038"))
+	_rect(stu, 10, 9, 1, 1, Color("ffffff"))
+	_rect(stu, 14, 9, 1, 1, Color("ffffff"))
+	_rect(stu, 10, 12, 4, 1, Color("c9946a"))
+	_rect(stu, 6, 12, 12, 10, Color("4a5c7c"))
+	_rect(stu, 6, 12, 12, 2, Color("38486a"))
+	_rect(stu, 11, 14, 2, 8, Color("3c4c6c"))
+	_rect(stu, 4, 13, 2, 7, Color("41516f"))
 	_rect(stu, 18, 13, 2, 7, Color("41516f"))
-	_rect(stu, 8, 22, 3, 7, Color("3a3a44"))   # 腿
-	_rect(stu, 13, 22, 3, 7, Color("3a3a44"))
-	_rect(stu, 8, 29, 3, 2, Color("1d1d24"))   # 鞋
+	_rect(stu, 8, 22, 3, 7, Color("3a3a44"))
+	_rect(stu, 13, 22, 3, 7, Color("34343e"))
+	_rect(stu, 7, 29, 4, 2, Color("1d1d24"))
 	_rect(stu, 13, 29, 3, 2, Color("1d1d24"))
 	_save(stu, "char_student.png")
+
+
+## 48x72 战斗立绘（3x 缩放到 144x216）。半身像：面向战场中央，
+## 发丝/衣甲双色分层 + 元素点缀，出招时在画面两侧切换。
+func _portraits() -> void:
+	_portrait_mo_fan()
+	_portrait_mu_ningxue()
+	_portrait_yu_ang()
+	_portrait_wolf_king()
+
+
+## 莫凡立绘：乱发少年握拳前倾，指节绕雷弧。
+func _portrait_mo_fan() -> void:
+	var p := _img(48, 72)
+	# 雷弧背景点缀
+	for bolt in [[8, 10], [40, 26], [10, 50]]:
+		_bolt(p, [Vector2i(bolt[0], bolt[1]), Vector2i(bolt[0] + 3, bolt[1] + 4),
+				Vector2i(bolt[0] + 1, bolt[1] + 8), Vector2i(bolt[0] + 4, bolt[1] + 12)],
+				Color("8f9fd0"), Color("44508a"))
+	# 后发层
+	_rect(p, 14, 6, 22, 18, Color("23232e"))
+	_rect(p, 12, 12, 3, 14, Color("23232e"))
+	_rect(p, 35, 10, 4, 10, Color("23232e"))
+	# 面部
+	_rect(p, 16, 12, 18, 20, Color("e8c39a"))
+	_rect(p, 16, 12, 18, 3, Color("c89a78"))       # 发影
+	_rect(p, 15, 26, 20, 6, Color("e8c39a"))       # 下颌
+	_rect(p, 17, 30, 16, 2, Color("d4a884"))       # 颌底影
+	_rect(p, 14, 2, 24, 10, Color("2a2a35"))       # 乱发
+	_rect(p, 11, 8, 5, 8, Color("2a2a35"))
+	_rect(p, 34, 4, 6, 9, Color("2a2a35"))
+	_rect(p, 16, 2, 16, 3, Color("3d3d4d"))        # 发高光
+	_rect(p, 12, 10, 3, 3, Color("3d3d4d"))
+	_rect(p, 36, 6, 3, 4, Color("3d3d4d"))
+	_rect(p, 13, 0, 4, 4, Color("2a2a35"))         # 翘起的发梢
+	_rect(p, 33, 0, 5, 5, Color("2a2a35"))
+	_rect(p, 13, 8, 3, 12, Color("2a2a35"))        # 侧发连到下颌，头发不悬空
+	_rect(p, 34, 8, 3, 10, Color("2a2a35"))
+	# 眼（看向右）：眼白+瞳+高光+剑眉
+	_rect(p, 19, 19, 5, 4, Color("e8e8f0"))
+	_rect(p, 21, 19, 2, 4, Color("4a3a8a"))
+	_rect(p, 21, 19, 2, 1, Color("ffffff"))
+	_rect(p, 28, 19, 5, 4, Color("e8e8f0"))
+	_rect(p, 30, 19, 2, 4, Color("4a3a8a"))
+	_rect(p, 30, 19, 2, 1, Color("ffffff"))
+	_rect(p, 18, 17, 7, 2, Color("2a2a35"))
+	_rect(p, 27, 17, 7, 2, Color("2a2a35"))
+	_rect(p, 22, 28, 6, 1, Color("c9946a"))        # 抿嘴
+	# 高领 + 躯干
+	_rect(p, 12, 36, 26, 6, Color("2c3a70"))
+	_rect(p, 22, 34, 8, 4, Color("46569e"))
+	_rect(p, 8, 42, 34, 30, Color("3b4a8c"))
+	_rect(p, 8, 42, 34, 3, Color("4a5aa4"))        # 肩高光
+	_rect(p, 23, 45, 4, 27, Color("324077"))       # 衣襟
+	_rect(p, 12, 56, 26, 2, Color("2c3a70"))
+	_rect(p, 10, 62, 30, 3, Color("2c3a70"))
+	# 左臂垂 + 右臂握拳前摆，拳绕雷弧
+	_rect(p, 6, 44, 6, 20, Color("324077"))
+	_rect(p, 6, 62, 5, 5, Color("e8c39a"))
+	_rect(p, 36, 44, 8, 14, Color("324077"))
+	_rect(p, 36, 57, 8, 7, Color("e8c39a"))
+	_rect(p, 37, 58, 2, 2, Color("d4a884"))
+	_bolt(p, [Vector2i(40, 52), Vector2i(44, 55), Vector2i(41, 58), Vector2i(45, 61)],
+			Color("c8f4ff"), Color("5a7fa0"))
+	_save(p, "portrait_mo_fan.png")
+
+
+## 穆宁雪立绘：银发飞扬的冰美人，指尖凝霜。
+func _portrait_mu_ningxue() -> void:
+	var p := _img(48, 72)
+	# 冰晶点缀
+	for c in [[7, 14], [41, 34], [9, 48]]:
+		_rect(p, c[0], c[1], 1, 5, Color("a8d8f0"))
+		_rect(p, c[0] - 2, c[1] + 2, 5, 1, Color("a8d8f0"))
+	# 后发大层（银发飞扬）
+	_rect(p, 10, 8, 28, 22, Color("b8c8dc"))
+	_rect(p, 6, 16, 8, 34, Color("b8c8dc"))
+	_rect(p, 34, 14, 9, 30, Color("b8c8dc"))
+	_rect(p, 5, 44, 8, 6, Color("9cb4d0"))         # 发尾
+	_rect(p, 35, 40, 9, 6, Color("9cb4d0"))
+	_rect(p, 12, 8, 22, 4, Color("e8f0f8"))        # 发顶高光
+	_rect(p, 6, 20, 3, 18, Color("dce8f4"))        # 发丝高光
+	_rect(p, 39, 18, 3, 16, Color("dce8f4"))
+	# 面部
+	_rect(p, 16, 12, 17, 19, Color("f2dcc0"))
+	_rect(p, 16, 12, 17, 3, Color("d0b8a0"))
+	_rect(p, 15, 25, 19, 6, Color("f2dcc0"))
+	_rect(p, 17, 29, 15, 2, Color("dcc0a8"))
+	_rect(p, 14, 3, 22, 11, Color("cfd8e6"))       # 刘海
+	_rect(p, 14, 3, 20, 3, Color("e8f0f8"))
+	_rect(p, 16, 8, 5, 4, Color("cfd8e6"))         # 连成一片的碎刘海
+	_rect(p, 22, 8, 4, 6, Color("cfd8e6"))
+	_rect(p, 28, 8, 5, 4, Color("cfd8e6"))
+	# 眼（清冷）：下垂眉 + 冰蓝瞳
+	_rect(p, 19, 19, 5, 4, Color("e8e8f0"))
+	_rect(p, 21, 19, 2, 4, Color("4a6d9c"))
+	_rect(p, 21, 19, 2, 1, Color("ffffff"))
+	_rect(p, 27, 19, 5, 4, Color("e8e8f0"))
+	_rect(p, 29, 19, 2, 4, Color("4a6d9c"))
+	_rect(p, 29, 19, 2, 1, Color("ffffff"))
+	_rect(p, 18, 17, 7, 1, Color("8ca0b8"))
+	_rect(p, 27, 17, 7, 1, Color("8ca0b8"))
+	_rect(p, 22, 27, 5, 1, Color("c98c8c"))
+	# 冰蓝长裙 + 白领
+	_rect(p, 12, 34, 24, 5, Color("e8f0f8"))
+	_rect(p, 10, 39, 28, 33, Color("9cc4e8"))
+	_rect(p, 10, 39, 28, 3, Color("b0d4f0"))
+	_rect(p, 22, 42, 4, 30, Color("84aed4"))
+	_rect(p, 12, 54, 24, 2, Color("8ab4dc"))
+	_rect(p, 8, 62, 32, 4, Color("7fa8cf"))
+	_rect(p, 8, 66, 32, 2, Color("6d97be"))
+	# 指尖凝霜
+	_rect(p, 4, 50, 6, 4, Color("f2dcc0"))
+	_rect(p, 3, 47, 3, 3, Color("d8f4ff"))
+	_rect(p, 2, 45, 2, 2, Color("ffffff"))
+	_rect(p, 38, 46, 6, 4, Color("f2dcc0"))
+	_rect(p, 42, 43, 3, 3, Color("d8f4ff"))
+	_save(p, "portrait_mu_ningxue.png")
+
+
+## 宇昂立绘：金发白衣的骄子，指间燃火。
+func _portrait_yu_ang() -> void:
+	var p := _img(48, 72)
+	# 火焰点缀
+	for f in [[8, 30], [40, 12]]:
+		_rect(p, f[0], f[1], 2, 6, Color("ff9d3c"))
+		_rect(p, f[0] + 1, f[1] - 3, 2, 4, Color("ffd166"))
+	# 后发
+	_rect(p, 13, 5, 24, 16, Color("c8a038"))
+	_rect(p, 11, 10, 4, 10, Color("c8a038"))
+	_rect(p, 35, 8, 5, 8, Color("c8a038"))
+	# 面部（下巴微扬，视角略低）
+	_rect(p, 16, 11, 18, 21, Color("eec9a0"))
+	_rect(p, 16, 11, 18, 3, Color("c8a480"))
+	_rect(p, 15, 26, 20, 6, Color("eec9a0"))
+	_rect(p, 17, 30, 16, 2, Color("d4a884"))
+	_rect(p, 14, 1, 23, 10, Color("d8b44a"))       # 后梳金发
+	_rect(p, 14, 1, 19, 3, Color("eacc6e"))
+	_rect(p, 12, 4, 4, 5, Color("c8a038"))
+	_rect(p, 35, 2, 5, 6, Color("c8a038"))
+	# 眼（骄矜）：挑眉 + 窄瞳
+	_rect(p, 19, 18, 5, 4, Color("e8e8f0"))
+	_rect(p, 21, 18, 2, 4, Color("3c4c8c"))
+	_rect(p, 21, 18, 2, 1, Color("ffffff"))
+	_rect(p, 28, 18, 5, 4, Color("e8e8f0"))
+	_rect(p, 30, 18, 2, 4, Color("3c4c8c"))
+	_rect(p, 30, 18, 2, 1, Color("ffffff"))
+	_rect(p, 18, 15, 7, 2, Color("8c6c2a"))
+	_rect(p, 27, 15, 7, 2, Color("8c6c2a"))
+	_rect(p, 22, 27, 6, 1, Color("b06a5a"))
+	_rect(p, 27, 28, 3, 1, Color("a05a4a"))        # 上扬的嘴角
+	# 白金华服
+	_rect(p, 12, 36, 26, 6, Color("c8b04a"))
+	_rect(p, 22, 34, 8, 4, Color("d8c46a"))
+	_rect(p, 8, 42, 34, 30, Color("e8e4da"))
+	_rect(p, 8, 42, 34, 3, Color("f4f0e8"))
+	_rect(p, 23, 45, 4, 27, Color("b8a840"))
+	_rect(p, 12, 56, 26, 2, Color("c2b8a8"))
+	_rect(p, 10, 62, 30, 3, Color("c2b8a8"))
+	# 左手垂，右手燃火
+	_rect(p, 6, 44, 6, 20, Color("d8d4ca"))
+	_rect(p, 6, 62, 5, 5, Color("eec9a0"))
+	_rect(p, 36, 44, 8, 14, Color("d8d4ca"))
+	_rect(p, 36, 57, 8, 6, Color("eec9a0"))
+	_rect(p, 37, 50, 6, 8, Color("ff9d3c"))
+	_rect(p, 38, 47, 4, 4, Color("ffd166"))
+	_rect(p, 39, 44, 2, 3, Color("fff2c8"))
+	_save(p, "portrait_yu_ang.png")
+
+
+## 狼王立绘：兽首特写，独眼青光、弯角獠牙、赤纹蔓延。
+func _portrait_wolf_king() -> void:
+	var p := _img(48, 72)
+	# 雷弧背景
+	for bolt in [[6, 8], [42, 20], [8, 44]]:
+		_bolt(p, [Vector2i(bolt[0], bolt[1]), Vector2i(bolt[0] + 3, bolt[1] + 5),
+				Vector2i(bolt[0] + 1, bolt[1] + 10)],
+				Color("8fd8f0"), Color("3a6a80"))
+	# 头部大轮廓（前倾压向左）
+	_rect(p, 10, 14, 32, 34, Color("2a2d3c"))
+	_rect(p, 6, 22, 8, 22, Color("272a38"))        # 颊侧鬃毛
+	_rect(p, 36, 20, 8, 24, Color("272a38"))
+	_rect(p, 12, 12, 26, 4, Color("3a3f52"))       # 头顶高光
+	# 双弯角
+	_rect(p, 14, 4, 6, 10, Color("e0d8c8"))
+	_rect(p, 10, 0, 6, 6, Color("e0d8c8"))
+	_rect(p, 7, 0, 4, 3, Color("d0c6ae"))
+	_rect(p, 30, 2, 6, 10, Color("e0d8c8"))
+	_rect(p, 36, 0, 6, 6, Color("e0d8c8"))
+	_rect(p, 41, 0, 4, 3, Color("d0c6ae"))
+	# 独眼（青光竖瞳）
+	_rect(p, 14, 24, 12, 9, Color("0e2836"))
+	_rect(p, 15, 25, 10, 7, Color("4a9cc0"))
+	_rect(p, 16, 26, 8, 5, Color("8fe4fa"))
+	_rect(p, 17, 27, 5, 3, Color("d2f6ff"))
+	_rect(p, 18, 27, 2, 2, Color("ffffff"))
+	_rect(p, 21, 25, 2, 7, Color("0e2836"))        # 竖瞳
+	# 吻部与裂口獠牙
+	_rect(p, 8, 40, 32, 14, Color("2e3142"))
+	_rect(p, 8, 40, 32, 3, Color("3c4254"))
+	_rect(p, 6, 50, 36, 12, Color("1a0a12"))       # 口腔
+	_rect(p, 10, 54, 28, 6, Color("0d040a"))
+	for i in 5:                                      # 上獠牙
+		var fx := 9 + i * 7
+		_rect(p, fx, 50, 3, 6, Color("e8e2d2"))
+		_rect(p, fx, 56, 2, 3, Color("d0c6ae"))
+	_rect(p, 12, 66, 4, 4, Color("e8e2d2"))        # 下獠牙
+	_rect(p, 30, 66, 4, 4, Color("e8e2d2"))
+	_rect(p, 44, 24, 2, 2, Color("ff4040"))        # 第二眼的疤痕暗红
+	_rect(p, 43, 23, 4, 1, Color("6a2020"))
+	# 异变赤纹
+	_rect(p, 20, 12, 10, 2, Color("8c2020"))
+	_rect(p, 24, 14, 6, 1, Color("b03030"))
+	_rect(p, 38, 32, 6, 2, Color("8c2020"))
+	_rect(p, 8, 34, 6, 1, Color("8c2020"))
+	_save(p, "portrait_wolf_king.png")
 
 
 ## 一段折线雷弧（1px 主干 + 微光晕），妖魔雷系技能的形体暗示。
