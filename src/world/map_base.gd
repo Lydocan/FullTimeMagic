@@ -739,24 +739,111 @@ func objective_target() -> Vector2:
 ## —— 菜单骨架（篝火/商店/背包共用） ——
 
 ## 构建居中菜单面板，返回可动态重建的内容容器（标题常驻，Esc 由 _unhandled_input 统一关闭）。
+## 华丽化：深紫夜色面板 + 金色饰线标题 + 统一按钮主题（与战斗 UI 同一观感体系）。
 func _menu_base(title_text: String, width := 360.0) -> VBoxContainer:
 	_menu = CenterContainer.new()
 	_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu.theme = _menu_theme()
 	var panel := PanelContainer.new()
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.055, 0.04, 0.11, 0.96)
+	panel_style.border_color = Color("7a68b0")
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(10)
+	panel_style.shadow_color = Color(0, 0, 0, 0.45)
+	panel_style.shadow_size = 14
+	panel_style.content_margin_left = 22.0
+	panel_style.content_margin_right = 22.0
+	panel_style.content_margin_top = 12.0
+	panel_style.content_margin_bottom = 16.0
+	panel.add_theme_stylebox_override("panel", panel_style)
+	# 面板里的微渐变底：纵向深紫过渡，撑出质感
+	var grad := TextureRect.new()
+	var g := Gradient.new()
+	g.set_offset(0, 0.0)
+	g.set_color(0, Color(0.16, 0.11, 0.26, 0.55))
+	g.set_offset(1, 1.0)
+	g.set_color(1, Color(0.02, 0.01, 0.05, 0.0))
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = g
+	gtex.fill_from = Vector2(0.5, 0.0)
+	gtex.fill_to = Vector2(0.5, 1.0)
+	gtex.width = 32
+	gtex.height = 128
+	grad.texture = gtex
+	grad.stretch_mode = TextureRect.STRETCH_SCALE
+	grad.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	grad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(grad)
 	var panel_box := VBoxContainer.new()
-	panel_box.add_theme_constant_override("separation", 6)
+	panel_box.add_theme_constant_override("separation", 8)
 	panel.add_child(panel_box)
-	_menu.add_child(panel)
-	var title := Label.new()
-	title.text = title_text
-	title.add_theme_font_size_override("font_size", 20)
-	panel_box.add_child(title)
+	# 饰线标题：两侧金线夹「◆ 标题 ◆」
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 10)
+	for side in 2:
+		var line := ColorRect.new()
+		line.color = Color(1.0, 0.82, 0.4, 0.35)
+		line.custom_minimum_size = Vector2(0, 2)
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		title_row.add_child(line)
+		if side == 0:
+			var title := Label.new()
+			title.text = "◆ %s ◆" % title_text
+			title.add_theme_font_size_override("font_size", 20)
+			title.add_theme_color_override("font_color", Color("ffd166"))
+			title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+			title.add_theme_constant_override("outline_size", 4)
+			title_row.add_child(title)
+	panel_box.add_child(title_row)
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 4)
+	body.add_theme_constant_override("separation", 5)
 	body.custom_minimum_size = Vector2(width, 0)
 	panel_box.add_child(body)
+	_menu.add_child(panel)  # 面板挂进菜单容器（漏掉这行曾让所有菜单渲染成空壳）
 	_hud.add_child(_menu)
 	return body
+
+
+## 菜单统一按钮主题：暗底细边、悬停金边、焦点金环——键盘导航的落点一眼可见。
+func _menu_theme() -> Theme:
+	var t := Theme.new()
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(1, 1, 1, 0.045)
+	normal.border_color = Color(1, 1, 1, 0.10)
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(6)
+	normal.content_margin_left = 12.0
+	normal.content_margin_right = 12.0
+	normal.content_margin_top = 7.0
+	normal.content_margin_bottom = 7.0
+	var hover := normal.duplicate()
+	hover.bg_color = Color(1, 1, 1, 0.09)
+	hover.border_color = Color(1.0, 0.82, 0.4, 0.55)
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color(1, 1, 1, 0.14)
+	pressed.border_color = Color(1.0, 0.82, 0.4, 0.75)
+	var disabled := normal.duplicate()
+	disabled.bg_color = Color(1, 1, 1, 0.02)
+	disabled.border_color = Color(1, 1, 1, 0.05)
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = Color(1.0, 0.82, 0.4, 0.9)
+	focus.set_border_width_all(2)
+	focus.set_corner_radius_all(6)
+	t.set_stylebox("normal", "Button", normal)
+	t.set_stylebox("hover", "Button", hover)
+	t.set_stylebox("pressed", "Button", pressed)
+	t.set_stylebox("disabled", "Button", disabled)
+	t.set_stylebox("focus", "Button", focus)
+	t.set_color("font_color", "Button", Color(0.93, 0.91, 0.86))
+	t.set_color("font_hover_color", "Button", Color(1, 0.95, 0.82))
+	t.set_color("font_focus_color", "Button", Color(1, 0.95, 0.82))
+	t.set_color("font_pressed_color", "Button", Color(1, 0.9, 0.7))
+	t.set_color("font_disabled_color", "Button", Color(1, 1, 1, 0.28))
+	t.set_font_size("font_size", "Button", 14)
+	return t
 
 
 ## 菜单的结果提示行（每次重建时新建）。
@@ -979,46 +1066,138 @@ func _open_bag() -> void:
 	if _menu != null or _event_running:
 		return
 	player.input_enabled = false
-	_bag_box = _menu_base("背包", 420)
+	_bag_box = _menu_base("背包", 480)
 	_refresh_bag()
 
 
 func _refresh_bag() -> void:
 	for child in _bag_box.get_children():
 		child.queue_free()
-	var message := _menu_message(_bag_box)
-	var head := Label.new()
-	head.text = "—— 消耗品 ——"
-	head.add_theme_font_size_override("font_size", 13)
-	_bag_box.add_child(head)
+	_menu_message(_bag_box)
+	_bag_section(_bag_box, "消耗品")
 	if GameState.items.is_empty():
 		var empty := Label.new()
 		empty.text = "（空空如也）"
 		empty.add_theme_font_size_override("font_size", 12)
+		empty.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_bag_box.add_child(empty)
 	for item_id in GameState.items:
 		var item: ItemData = GameData.load_item(item_id)
-		var btn := Button.new()
-		btn.text = "%s ×%d · %s" % [item.item_name, GameState.items[item_id], item.effect_text()]
-		btn.add_theme_font_size_override("font_size", 13)
-		btn.pressed.connect(_pick_field_target.bind(item_id))
+		if item == null:
+			continue
+		var btn := _bag_item_button(item.item_name, item.effect_text(), _item_kind_color(item),
+				GameState.items[item_id], _pick_field_target.bind(item_id))
 		_bag_box.add_child(btn)
-	var equip_head := Label.new()
-	equip_head.text = "—— 装备（选择后为领队穿戴） ——"
-	equip_head.add_theme_font_size_override("font_size", 13)
-	_bag_box.add_child(equip_head)
+	_bag_section(_bag_box, "装备 · 选择后为领队穿戴")
+	if GameState.equip_bag.is_empty():
+		var empty_eq := Label.new()
+		empty_eq.text = "（未携带装备）"
+		empty_eq.add_theme_font_size_override("font_size", 12)
+		empty_eq.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
+		empty_eq.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_bag_box.add_child(empty_eq)
 	for equip_id in GameState.equip_bag:
 		var eq: EquipData = GameData.load_equip(equip_id)
-		var btn := Button.new()
-		btn.text = "%s（%s）· %s" % [eq.equip_name, eq.slot_name(), eq.bonus_text()]
-		btn.add_theme_font_size_override("font_size", 13)
-		btn.pressed.connect(_pick_equip_target.bind(equip_id))
+		if eq == null:
+			continue
+		var btn := _bag_item_button("%s（%s）" % [eq.equip_name, eq.slot_name()], eq.bonus_text(),
+				Color("c8b04a"), 1, _pick_equip_target.bind(equip_id))
 		_bag_box.add_child(btn)
 	var close_btn := Button.new()
 	close_btn.text = "关闭（Esc）"
 	close_btn.pressed.connect(_close_rest_menu)
 	_bag_box.add_child(close_btn)
 	_focus_menu()
+
+
+## 分节头：金菱 + 金字 + 渐隐饰线。
+func _bag_section(box: VBoxContainer, text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var gem := Label.new()
+	gem.text = "◆"
+	gem.add_theme_font_size_override("font_size", 12)
+	gem.add_theme_color_override("font_color", Color("ffd166"))
+	row.add_child(gem)
+	var lb := Label.new()
+	lb.text = text
+	lb.add_theme_font_size_override("font_size", 14)
+	lb.add_theme_color_override("font_color", Color("ffd166"))
+	row.add_child(lb)
+	var line := ColorRect.new()
+	line.color = Color(1.0, 0.82, 0.4, 0.22)
+	line.custom_minimum_size = Vector2(0, 2)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(line)
+	box.add_child(row)
+
+
+## 物品行按钮：左侧类型色标 + 名称/数量 + 次行说明；外观由菜单主题接管。
+func _bag_item_button(title: String, sub: String, chip_color: Color, count: int, on_press: Callable) -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(0, 48)
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 12.0
+	row.offset_right = -12.0
+	row.offset_top = 6.0
+	row.offset_bottom = -6.0
+	row.add_theme_constant_override("separation", 10)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var chip := PanelContainer.new()
+	var chip_style := StyleBoxFlat.new()
+	chip_style.bg_color = chip_color
+	chip_style.set_corner_radius_all(3)
+	chip.add_theme_stylebox_override("panel", chip_style)
+	chip.custom_minimum_size = Vector2(7, 0)
+	chip.size_flags_vertical = Control.SIZE_FILL
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(chip)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 6)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var name_lb := Label.new()
+	name_lb.text = title
+	name_lb.add_theme_font_size_override("font_size", 14)
+	name_lb.add_theme_color_override("font_color", Color(0.96, 0.93, 0.86))
+	name_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_child(name_lb)
+	if count > 1:
+		var count_lb := Label.new()
+		count_lb.text = "×%d" % count
+		count_lb.add_theme_font_size_override("font_size", 13)
+		count_lb.add_theme_color_override("font_color", Color("ffd166"))
+		count_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		name_row.add_child(count_lb)
+	col.add_child(name_row)
+	var sub_lb := Label.new()
+	sub_lb.text = sub
+	sub_lb.add_theme_font_size_override("font_size", 11)
+	sub_lb.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+	sub_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(sub_lb)
+	row.add_child(col)
+	btn.add_child(row)
+	btn.pressed.connect(on_press)
+	return btn
+
+
+## 物品类型 → 色标颜色（血红/魔蓝/复活金，未知归紫）。
+func _item_kind_color(item: ItemData) -> Color:
+	match item.kind:
+		"heal_hp":
+			return Color("e0655a")
+		"heal_mp":
+			return Color("5a8ae0")
+		"revive":
+			return Color("ffd166")
+	return Color("9a8fd0")
 
 
 func _pick_field_target(item_id: String) -> void:

@@ -143,8 +143,11 @@ func _test_equip_flow() -> bool:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	for btn in (city.get("_bag_box") as VBoxContainer).get_children():
-		if btn is Button and btn.text.contains("雷纹杖"):
-			btn.pressed.emit()
+		# 新版物品行是"无 text 的按钮 + 子 Label"，按子 Label 文案找目标
+		if btn is Button:
+			for lbl in btn.find_children("*", "Label", true, false):
+				if lbl is Label and lbl.text.contains("雷纹杖"):
+					btn.pressed.emit()
 	await get_tree().process_frame
 	var focus: Control = get_viewport().gui_get_focus_owner()
 	var focus_ok: bool = focus != null and not focus.is_queued_for_deletion()
