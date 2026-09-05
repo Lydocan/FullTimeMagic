@@ -6,6 +6,9 @@ extends Node
 ## 精魄突破所需数量（原型期统一 1 个）。
 const ESSENCE_COST := 1
 
+## 衣装脚本：按路径 preload，不依赖 class_name 全局缓存（docs/lessons.md 踩坑 12/18）。
+const ClothingDataScript := preload("res://src/data/clothing_data.gd")
+
 var party: Array[CharacterState] = []
 var gold: int = 30
 ## 精魄持有：{essence_id: count}
@@ -91,7 +94,7 @@ func add_clothing(clothing_id: String) -> bool:
 func wear_clothing(slot: String, clothing_id: String) -> bool:
 	if not is_clothing_owned(clothing_id):
 		return false
-	var c: ClothingData = GameData.load_clothing(clothing_id)
+	var c: ClothingDataScript = GameData.load_clothing(clothing_id)
 	if c == null or c.slot != slot:
 		return false
 	worn_clothes[slot] = clothing_id
@@ -102,7 +105,7 @@ func wear_clothing(slot: String, clothing_id: String) -> bool:
 func glamour_total() -> int:
 	var total := 0
 	for clothing_id in owned_clothes:
-		var c: ClothingData = GameData.load_clothing(clothing_id)
+		var c: ClothingDataScript = GameData.load_clothing(clothing_id)
 		if c != null:
 			total += c.glamour
 	return total
