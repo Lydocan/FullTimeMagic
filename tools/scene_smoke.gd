@@ -180,7 +180,7 @@ func _test_outfit_visuals() -> bool:
 	await get_tree().process_frame
 	var back_btn: BaseButton = null
 	var knight_btn: BaseButton = null
-	for btn in scene2._wardrobe_box.find_children("*", "Button", true, false):
+	for btn in scene2._menu.find_children("*", "Button", true, false):  # 返回键已固定在滚动区外，查全菜单
 		if btn.text == "返回杂货铺":  # 普通按钮有真 text；衣装按钮的文字在内嵌 Label 里
 			back_btn = btn
 			continue

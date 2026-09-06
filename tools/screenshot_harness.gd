@@ -7,6 +7,7 @@ const OUT_DIR := "res://shots"
 
 # 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
 const PartySetup := preload("res://src/data/party_setup.gd")
+const GameData := preload("res://src/data/game_data.gd")
 
 
 func _ready() -> void:
@@ -41,6 +42,14 @@ func _ready() -> void:
 	player.global_position = city._cell_center(Vector2i(9, 19)) + Vector2(26, 0)  # 商人旁
 	await _wait(0.5)
 	await _snap("02_bo_city_merchant_glow.png")
+	# —— 商店滚动验收：长货架（全部衣装）可滚，衣柜/离开固定底部 ——
+	var shop_wares: Array = []
+	for cid in GameData.CLOTHES:
+		shop_wares.append({"kind": "clothing", "id": cid})
+	city._open_shop(shop_wares)
+	await _wait(0.4)
+	await _snap("02b_shop_scroll.png")
+	city._close_rest_menu()
 	# —— 背包华丽化验收（消耗品/装备/衣装齐全）——
 	GameState.add_item("yuelu", 3)
 	GameState.add_item("mojingjie", 2)

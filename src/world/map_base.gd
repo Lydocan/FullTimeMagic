@@ -1017,28 +1017,52 @@ func _refresh_menu() -> void:
 
 var _wares: Array = []
 var _shop_box: VBoxContainer
+var _shop_list: VBoxContainer  # 滚动区内的货架列表（随刷新重建）
 
 
 ## 货架由地图注册（见 add_merchant），条目 {"kind": "item"/"equip", "id": 数据id}。
+## 货架装在滚动容器里，衣柜/离开固定底部——衣装多了按钮不再被顶出屏幕。
 func _open_shop(wares: Array) -> void:
 	if _menu != null or _event_running:
 		return
 	player.input_enabled = false
 	_wares = wares
 	_shop_box = _menu_base("杂货铺", 500)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 430)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_shop_list = VBoxContainer.new()
+	_shop_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_shop_list)
+	_shop_box.add_child(scroll)
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 10)
+	var wardrobe_btn := Button.new()
+	wardrobe_btn.text = "衣柜 · 更换衣装"
+	wardrobe_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wardrobe_btn.pressed.connect(func() -> void:
+		_close_rest_menu()
+		_open_wardrobe()
+	)
+	footer.add_child(wardrobe_btn)
+	var close_btn := Button.new()
+	close_btn.text = "离开"
+	close_btn.pressed.connect(_close_rest_menu)
+	footer.add_child(close_btn)
+	_shop_box.add_child(footer)
 	_refresh_shop()
 
 
 func _refresh_shop() -> void:
-	for child in _shop_box.get_children():
+	for child in _shop_list.get_children():
 		child.queue_free()
 	var gold_label := Label.new()
 	gold_label.text = "金币 %d" % GameState.gold
 	gold_label.add_theme_font_size_override("font_size", 14)
 	gold_label.add_theme_color_override("font_color", Color("ffd166"))
-	_shop_box.add_child(gold_label)
-	var message := _menu_message(_shop_box)
-	var first := true
+	_shop_list.add_child(gold_label)
+	var message := _menu_message(_shop_list)
 	for w in _wares:
 		var btn := Button.new()
 		btn.add_theme_font_size_override("font_size", 13)
@@ -1061,21 +1085,8 @@ func _refresh_shop() -> void:
 			btn.text = "%s（%s）· %s —— %d 金币" % [
 				eq.equip_name, eq.slot_name(), eq.bonus_text(), eq.price]
 			btn.pressed.connect(_buy_ware.bind(w))
-		_shop_box.add_child(btn)
-		if first:
-			btn.grab_focus()
-			first = false
-	var wardrobe_btn := Button.new()
-	wardrobe_btn.text = "衣柜 · 更换衣装"
-	wardrobe_btn.pressed.connect(func() -> void:
-		_close_rest_menu()
-		_open_wardrobe()
-	)
-	_shop_box.add_child(wardrobe_btn)
-	var close_btn := Button.new()
-	close_btn.text = "离开"
-	close_btn.pressed.connect(_close_rest_menu)
-	_shop_box.add_child(close_btn)
+		_shop_list.add_child(btn)
+	_focus_menu()  # 首个可点按钮（自动跳过已拥有的禁用项）
 
 
 ## —— 衣柜：只能在杂货铺进入（试玩需求）——
@@ -1110,6 +1121,19 @@ func _open_wardrobe() -> void:
 	_wardrobe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_wardrobe_box)
 	_wardrobe_columns.add_child(scroll)
+	# 底部固定：返回杂货铺（不随列表滚动）
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 10)
+	var back_btn := Button.new()
+	back_btn.text = "返回杂货铺"
+	back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back_btn.pressed.connect(func() -> void:
+		_close_rest_menu()  # 同帧内重进商店：解锁后立刻重锁，无输入窗口
+		_open_shop(_wares)
+	)
+	back_btn.focus_entered.connect(_refresh_outfit_preview)  # 移出列表 → 预览回到当前穿着
+	footer.add_child(back_btn)
+	body.add_child(footer)
 	_refresh_wardrobe_tabs()
 	_refresh_wardrobe()
 
@@ -1240,14 +1264,6 @@ func _refresh_wardrobe() -> void:
 			empty.add_theme_font_size_override("font_size", 12)
 			empty.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
 			_wardrobe_box.add_child(empty)
-	var back_btn := Button.new()
-	back_btn.text = "返回杂货铺"
-	back_btn.pressed.connect(func() -> void:
-		_close_rest_menu()  # 同帧内重进商店：解锁后立刻重锁，无输入窗口
-		_open_shop(_wares)
-	)
-	back_btn.focus_entered.connect(_refresh_outfit_preview)  # 移出列表 → 预览回到当前穿着
-	_wardrobe_box.add_child(back_btn)
 	_focus_menu()
 	_refresh_outfit_preview()
 
@@ -1316,15 +1332,28 @@ func _buy_ware(w: Dictionary) -> void:
 
 ## —— 背包：使用消耗品 / 穿戴装备 ——
 
-var _bag_box: VBoxContainer
+var _bag_box: VBoxContainer  # 滚动区内的背包列表（随刷新重建）
 var _pending_bag_item := ""
 
 
+## 背包装在滚动容器里，「关闭」固定底部——物品多时不溢出屏幕。
 func _open_bag() -> void:
 	if _menu != null or _event_running:
 		return
 	player.input_enabled = false
-	_bag_box = _menu_base("背包", 480)
+	var body: VBoxContainer = _menu_base("背包", 480)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 430)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_bag_box = VBoxContainer.new()
+	_bag_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_bag_box)
+	body.add_child(scroll)
+	var close_btn := Button.new()
+	close_btn.text = "关闭（Esc）"
+	close_btn.pressed.connect(_close_rest_menu)
+	body.add_child(close_btn)
 	_refresh_bag()
 
 
@@ -1384,11 +1413,7 @@ func _refresh_bag() -> void:
 					_glamour_color(c.glamour), 1,
 					func() -> void: _menu_result.text = "更换衣装请到杂货铺的衣柜。")
 			_bag_box.add_child(btn)
-	var close_btn := Button.new()
-	close_btn.text = "关闭（Esc）"
-	close_btn.pressed.connect(_close_rest_menu)
-	_bag_box.add_child(close_btn)
-	_focus_menu()
+	_focus_menu()  # 「关闭」已在 _open_bag 固定于滚动区外
 
 
 ## 空状态的置灰居中提示行。
