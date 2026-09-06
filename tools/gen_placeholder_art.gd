@@ -790,6 +790,7 @@ func _outfits() -> void:
 	_cloth_hunter()
 	_cloth_noble()
 	_cloth_monarch()
+	_outfits_xue()
 
 
 func _save_cloth(img: Image, fname: String) -> void:
@@ -997,3 +998,156 @@ func _cloth_monarch() -> void:
 	var pants := _img(24, 32)
 	_pants_base(pants, Color("d8b06a"), Color("c8a05c"), Color("c8b04a"))
 	_save_cloth(pants, "cloth_shop_1000_pants.png")
+
+
+## —— 穆宁雪衣装：银发披肩 + 连衣裙/腿袜槽位，分区与莫凡同一套身体模板 ——##
+## 渲染顺序（内→外）：腿袜 → 下装 → 上装 → 连衣裙 → 帽；穿连衣裙时上/下装隐藏，
+## 腿袜在裙摆下露出小腿。肤色比莫凡浅一档（f2dcc0）。
+
+func _muningxue_base() -> void:
+	var b := _img(24, 32)
+	_rect(b, 5, 2, 14, 9, Color("cfd8e6"))     # 银发
+	_rect(b, 6, 2, 10, 2, Color("e8f0f8"))     # 发顶高光
+	_rect(b, 4, 8, 3, 14, Color("b8c8dc"))     # 左披发至腰
+	_rect(b, 17, 8, 3, 14, Color("b8c8dc"))    # 右披发
+	_rect(b, 4, 20, 3, 2, Color("a4b8d0"))     # 发尾层次
+	_rect(b, 17, 20, 3, 2, Color("a4b8d0"))
+	_rect(b, 8, 7, 8, 5, Color("f2dcc0"))      # 脸
+	_rect(b, 8, 7, 8, 1, Color("d8c0a8"))      # 发影
+	_rect(b, 9, 9, 2, 2, Color("e8e8f0"))
+	_rect(b, 10, 9, 1, 2, Color("4a6d9c"))     # 冰蓝瞳
+	_rect(b, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(b, 14, 9, 1, 2, Color("4a6d9c"))
+	_rect(b, 10, 9, 1, 1, Color("ffffff"))
+	_rect(b, 14, 9, 1, 1, Color("ffffff"))
+	_rect(b, 10, 12, 4, 1, Color("c98c8c"))    # 嘴
+	_rect(b, 6, 13, 12, 9, Color("d8d8e0"))    # 背心打底
+	_rect(b, 6, 13, 12, 2, Color("e4e4ea"))
+	_rect(b, 4, 14, 2, 6, Color("f2dcc0"))     # 左臂
+	_rect(b, 18, 14, 3, 5, Color("f2dcc0"))    # 右臂
+	_rect(b, 19, 19, 2, 2, Color("f2dcc0"))    # 手
+	_rect(b, 7, 22, 10, 3, Color("c8c8d2"))    # 短裤打底
+	_rect(b, 8, 25, 3, 5, Color("f2dcc0"))     # 左腿
+	_rect(b, 13, 25, 3, 5, Color("e6ccae"))    # 右腿
+	_save(b, "char_muningxue_base.png")
+
+
+## 上衣基形（穆宁雪版）：肤色手臂由基调换入。
+func _xue_top_base(img: Image, main: Color, dark: Color, light: Color) -> void:
+	_rect(img, 6, 13, 12, 9, main)
+	_rect(img, 6, 13, 12, 2, light)
+	_rect(img, 11, 15, 2, 7, dark)
+	_rect(img, 7, 20, 10, 1, dark)
+	_rect(img, 4, 14, 2, 6, dark)
+	_rect(img, 18, 14, 3, 5, dark)
+	_rect(img, 19, 19, 2, 2, Color("f2dcc0"))
+
+
+## 连衣裙基形：躯干 + 展开裙摆（y21-27），腿袜在裙摆下露小腿。
+func _xue_dress_base(img: Image, main: Color, dark: Color, light: Color) -> void:
+	_rect(img, 6, 13, 12, 9, main)
+	_rect(img, 6, 13, 12, 2, light)
+	_rect(img, 5, 21, 14, 5, main)             # 裙摆展开
+	_rect(img, 4, 25, 16, 2, dark)             # 裙摆阴影
+	_rect(img, 4, 26, 16, 1, dark)
+
+
+## 腿袜基形：连裤袜 + 鞋（无袜时由下装/连衣裙自带的鞋补位）。
+func _xue_hosiery_base(img: Image, stocking: Color, sheen: Color, shoe: Color) -> void:
+	_rect(img, 8, 22, 3, 7, stocking)
+	_rect(img, 13, 22, 3, 7, stocking)
+	_rect(img, 8, 24, 3, 1, sheen)             # 袜面微光
+	_rect(img, 13, 24, 3, 1, sheen)
+	_rect(img, 7, 29, 4, 2, shoe)
+	_rect(img, 13, 29, 3, 2, shoe)
+
+
+func _outfits_xue() -> void:
+	_muningxue_base()
+	# 银白常服（初始连衣裙）：蓝白校服裙
+	var d := _img(24, 32)
+	_xue_dress_base(d, Color("9cc4e8"), Color("7fa8cf"), Color("b0d4f0"))
+	_rect(d, 6, 13, 12, 2, Color("f0f6fc"))    # 雪白领
+	_rect(d, 11, 15, 2, 7, Color("84aed4"))
+	_save_cloth(d, "cloth_xue_dress_uniform.png")
+	# 白丝袜（初始）
+	var hw := _img(24, 32)
+	_xue_hosiery_base(hw, Color("f0f0f4"), Color("ffffff"), Color("e0e0e6"))
+	_save_cloth(hw, "cloth_xue_hosiery_white.png")
+	# 夏日吊带：露臂（只画躯干 + 吊带肩带，手臂保持肤色）
+	var cami := _img(24, 32)
+	_rect(cami, 7, 13, 10, 9, Color("f4f8fa"))
+	_rect(cami, 8, 12, 1, 2, Color("f4f8fa"))  # 吊带肩带
+	_rect(cami, 15, 12, 1, 2, Color("f4f8fa"))
+	_rect(cami, 9, 14, 6, 1, Color("7ecbff"))  # 海蓝饰线
+	_save_cloth(cami, "cloth_xue_camisole.png")
+	# 蔚蓝毛衣：长袖
+	var sw := _img(24, 32)
+	_xue_top_base(sw, Color("5a8ae0"), Color("4a76c0"), Color("7aa2e8"))
+	_rect(sw, 8, 17, 8, 1, Color("7ecbff"))
+	_save_cloth(sw, "cloth_xue_sweater.png")
+	# 海风短裙（下装槽）：白蓝百褶 + 白鞋
+	var sk := _img(24, 32)
+	_rect(sk, 6, 22, 12, 4, Color("e8f0f8"))
+	_rect(sk, 6, 25, 12, 1, Color("c2d4e4"))
+	for i in 4:
+		_rect(sk, 7 + i * 3, 22, 1, 3, Color("b0d4f0"))  # 褶纹
+	_rect(sk, 7, 29, 4, 2, Color("e0e0e6"))
+	_rect(sk, 13, 29, 3, 2, Color("e0e0e6"))
+	_save_cloth(sk, "cloth_xue_skirt.png")
+	# 牛仔热裤（下装槽）：丹宁 + 凉鞋
+	var sh := _img(24, 32)
+	_rect(sh, 7, 22, 10, 4, Color("4a6d9c"))
+	_rect(sh, 7, 22, 10, 1, Color("5a7dac"))
+	_rect(sh, 7, 29, 4, 2, Color("c8b04a"))
+	_rect(sh, 13, 29, 3, 2, Color("c8b04a"))
+	_save_cloth(sh, "cloth_xue_shorts.png")
+	# 黑丝袜
+	var hb := _img(24, 32)
+	_xue_hosiery_base(hb, Color("2a2a35"), Color("3d3d4d"), Color("1d1d24"))
+	_save_cloth(hb, "cloth_xue_hosiery_black.png")
+	# 夏日泳装：蓝色连体 + 白点波纹 + 胸前蝴蝶结
+	var swim := _img(24, 32)
+	_xue_dress_base(swim, Color("5a8ae0"), Color("4a76c0"), Color("7aa2e8"))
+	_rect(swim, 9, 15, 2, 1, Color("ffffff"))
+	_rect(swim, 14, 17, 2, 1, Color("ffffff"))
+	_rect(swim, 11, 13, 2, 2, Color("ffd166"))  # 胸结
+	_save_cloth(swim, "cloth_xue_swimsuit.png")
+	# 银蝶发饰（帽槽）：银白蝴蝶 + 冰蓝宝心
+	var hd := _img(24, 32)
+	_rect(hd, 8, 3, 3, 2, Color("c8ccd8"))
+	_rect(hd, 13, 3, 3, 2, Color("c8ccd8"))
+	_rect(hd, 11, 4, 2, 1, Color("e0e4ee"))
+	_rect(hd, 11, 3, 2, 1, Color("7ecbff"))
+	_save_cloth(hd, "cloth_xue_headdress.png")
+	# 女仆装：黑裙白围裙 + 蕾丝边
+	var maid := _img(24, 32)
+	_xue_dress_base(maid, Color("2a2a35"), Color("1d1d24"), Color("3d3d4d"))
+	_rect(maid, 9, 15, 6, 6, Color("f0f0f4"))   # 围裙
+	_rect(maid, 6, 13, 12, 1, Color("f0f0f4"))  # 白领
+	_rect(maid, 4, 25, 16, 1, Color("f0f0f4"))  # 蕾丝裙边
+	_save_cloth(maid, "cloth_xue_maid.png")
+	# 星夜礼服：深蓝曳地长裙 + 金边 + 侧开衩
+	var gown := _img(24, 32)
+	_xue_dress_base(gown, Color("3b4a8c"), Color("2c3a70"), Color("46569e"))
+	_rect(gown, 6, 13, 12, 1, Color("ffd166"))  # 金边领
+	_rect(gown, 4, 27, 16, 1, Color("ffd166"))  # 裙摆金线
+	_rect(gown, 14, 21, 2, 5, Color("2c3a70"))  # 侧开衩
+	_save_cloth(gown, "cloth_xue_gown.png")
+	# 甜梦洛丽塔：粉白蓬裙双层 + 蝴蝶结 + 蕾丝
+	var lol := _img(24, 32)
+	_xue_dress_base(lol, Color("f4c2d8"), Color("e0a0c0"), Color("fad4e4"))
+	_rect(lol, 4, 23, 16, 2, Color("f8f0f4"))   # 白色裙撑层
+	_rect(lol, 4, 25, 16, 1, Color("e0a0c0"))
+	_rect(lol, 10, 14, 4, 3, Color("f8f0f4"))   # 胸前蝴蝶结
+	_rect(lol, 11, 15, 1, 1, Color("e0a0c0"))
+	_rect(lol, 6, 13, 12, 1, Color("f8f0f4"))   # 蕾丝领
+	_save_cloth(lol, "cloth_xue_lolita.png")
+	# 月夜哥特：黑紫裙 + 银灰蕾丝 + 紫丝带
+	var go := _img(24, 32)
+	_xue_dress_base(go, Color("3d2a4a"), Color("2a1f33"), Color("554066"))
+	_rect(go, 4, 25, 16, 1, Color("8a8fa8"))    # 银灰蕾丝边
+	_rect(go, 9, 15, 6, 5, Color("2a1f33"))     # 深色束身
+	_rect(go, 11, 14, 2, 1, Color("c792ff"))    # 紫丝带
+	_rect(go, 6, 13, 12, 1, Color("8a8fa8"))
+	_save_cloth(go, "cloth_xue_gothic.png")

@@ -10,6 +10,8 @@ extends Resource
 @export var glamour: int = 0
 ## 售价（0 = 初始赠送，商店不出售）。
 @export var price: int = 0
+## 归属角色（"mo_fan" / "mu_ningxue"），衣柜按角色过滤。
+@export var owner_id: String = "mo_fan"
 
 
 # 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。

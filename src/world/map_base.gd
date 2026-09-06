@@ -29,6 +29,25 @@ const MEMBER_TEXTURES := {
 	"mu_ningxue": "res://assets/images/char_muningxue.png",
 }
 
+## 成员换装槽位（渲染顺序 = 从内到外；穿连衣裙时上/下装层隐藏）。
+## 无配置的成员不参与换装（跟随者保持单贴图）。
+const MEMBER_WARDROBE_SLOTS := {
+	"mo_fan": ["hat", "top", "pants"],
+	"mu_ningxue": ["hosiery", "pants", "top", "dress", "hat"],
+}
+
+## 成员换装的基础身体贴图（分层渲染最底层，无衣）。
+const MEMBER_OUTFIT_BASE := {
+	"mo_fan": "res://assets/images/char_mofan_base.png",
+	"mu_ningxue": "res://assets/images/char_muningxue_base.png",
+}
+
+## 成员显示名（衣柜分页 / 背包衣装归属标注）。
+const MEMBER_NAMES := {
+	"mo_fan": "莫凡",
+	"mu_ningxue": "穆宁雪",
+}
+
 # tiles_proto.png 的 11 格横向图块。
 const T_GRASS := Vector2i(0, 0)
 const T_TALL := Vector2i(1, 0)
@@ -427,6 +446,10 @@ func _sync_followers() -> void:
 		var m: CharacterState = GameState.party[followers.size() + 1]
 		var follower: Node2D = FOLLOWER_SCRIPT.new()
 		follower.texture = load(MEMBER_TEXTURES.get(m.id, MEMBER_TEXTURES["mo_fan"]))
+		if MEMBER_WARDROBE_SLOTS.has(m.id):  # 衣柜成员：基础身体 + 分层换装
+			follower.member_id = m.id
+			follower.wardrobe_slots = MEMBER_WARDROBE_SLOTS[m.id]
+			follower.texture = load(MEMBER_OUTFIT_BASE[m.id])
 		follower.target = prev
 		follower.position = prev.position
 		add_child(follower)
@@ -1026,9 +1049,11 @@ func _refresh_shop() -> void:
 			btn.pressed.connect(_buy_ware.bind(w))
 		elif w["kind"] == "clothing":
 			var c: ClothingData = GameData.load_clothing(w["id"])
-			var owned: bool = GameState.is_clothing_owned(w["id"])
-			btn.text = "%s（%s · 华丽度 +%d）—— %d 金币%s" % [
-				c.clothing_name, c.slot_name(), c.glamour, c.price, "（已拥有）" if owned else ""]
+			var owned: bool = GameState.is_clothing_owned(c.owner_id, w["id"])
+			var owner_tag := "" if c.owner_id == "mo_fan" else "· 穆宁雪"
+			btn.text = "%s（%s%s · 华丽度 +%d）—— %d 金币%s" % [
+				c.clothing_name, c.slot_name(), owner_tag, c.glamour, c.price,
+				"（已拥有）" if owned else ""]
 			btn.disabled = owned
 			btn.pressed.connect(_buy_ware.bind(w))
 		else:
@@ -1057,7 +1082,10 @@ func _refresh_shop() -> void:
 ## 更换衣装、查看华丽度与时尚称号（华丽度 = 拥有所有衣装的华丽度总和）。
 
 var _wardrobe_box: VBoxContainer
+var _wardrobe_columns: HBoxContainer
+var _wardrobe_tabs: HBoxContainer
 var _preview_layers: Array[TextureRect] = []
+var _wardrobe_member := "mo_fan"
 
 
 func _open_wardrobe() -> void:
@@ -1065,19 +1093,64 @@ func _open_wardrobe() -> void:
 		return
 	player.input_enabled = false
 	var body: VBoxContainer = _menu_base("衣柜", 560)
-	# 左：试穿预览（键盘焦点移到哪件，小人即时试穿）｜右：槽位分组列表
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 16)
-	columns.add_child(_build_outfit_preview())
+	_wardrobe_tabs = HBoxContainer.new()
+	_wardrobe_tabs.add_theme_constant_override("separation", 10)
+	body.add_child(_wardrobe_tabs)
+	_wardrobe_columns = HBoxContainer.new()
+	_wardrobe_columns.add_theme_constant_override("separation", 16)
+	body.add_child(_wardrobe_columns)
+	# 左：试穿预览（按当前角色构建）
+	_wardrobe_columns.add_child(_build_outfit_preview(_wardrobe_member))
+	# 右：槽位分组列表装进滚动容器（衣装多了不再溢出屏幕）
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 430)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # 撑满剩余宽度
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_wardrobe_box = VBoxContainer.new()
 	_wardrobe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	columns.add_child(_wardrobe_box)
-	body.add_child(columns)
+	scroll.add_child(_wardrobe_box)
+	_wardrobe_columns.add_child(scroll)
+	_refresh_wardrobe_tabs()
 	_refresh_wardrobe()
 
 
-## 试穿预览面板：4 层贴图（base 身体/裤/上衣/帽）24x32 → 4x，NEAREST 保像素锐利。
-func _build_outfit_preview() -> Control:
+## 角色分页：莫凡常驻；穆宁雪入队后出现（她的衣柜她做主）。
+func _refresh_wardrobe_tabs() -> void:
+	for child in _wardrobe_tabs.get_children():
+		child.queue_free()
+	var in_party := false
+	for m in GameState.party:
+		if m.id == "mu_ningxue":
+			in_party = true
+	for member_id in MEMBER_WARDROBE_SLOTS:
+		if member_id == "mu_ningxue" and not in_party:
+			continue
+		var tab := Button.new()
+		tab.text = "%s的衣柜" % MEMBER_NAMES.get(member_id, member_id)
+		tab.disabled = member_id == _wardrobe_member  # 当前页禁用，键盘焦点自然跳过
+		tab.add_theme_font_size_override("font_size", 14)
+		tab.pressed.connect(_switch_wardrobe_member.bind(member_id))
+		_wardrobe_tabs.add_child(tab)
+
+
+func _switch_wardrobe_member(member_id: String) -> void:
+	if _wardrobe_member == member_id:
+		return
+	_wardrobe_member = member_id
+	_refresh_wardrobe_tabs()
+	# 预览按角色重建（base 贴图与层数都不同）：滚动容器保留，其余重建
+	_preview_layers.clear()
+	for child in _wardrobe_columns.get_children():
+		if child is ScrollContainer:
+			continue
+		child.queue_free()
+	_wardrobe_columns.add_child(_build_outfit_preview(member_id))
+	_wardrobe_columns.move_child(_wardrobe_columns.get_child(_wardrobe_columns.get_child_count() - 1), 0)
+	_refresh_wardrobe()
+
+
+## 试穿预览面板：base 身体 + 按角色槽位顺序的层贴图，24x32 → 4x，NEAREST 保像素锐利。
+func _build_outfit_preview(member_id: String) -> Control:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.05, 0.14, 0.94)
@@ -1102,7 +1175,10 @@ func _build_outfit_preview() -> Control:
 	frame.custom_minimum_size = Vector2(96, 128)
 	box.add_child(frame)
 	_preview_layers.clear()
-	for layer_path in ["res://assets/images/char_mofan_base.png", "", "", ""]:
+	var layer_paths: Array = [MEMBER_OUTFIT_BASE.get(member_id, "res://assets/images/char_mofan_base.png")]
+	for slot in MEMBER_WARDROBE_SLOTS.get(member_id, []):
+		layer_paths.append("")
+	for layer_path in layer_paths:
 		var tr := TextureRect.new()
 		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
@@ -1116,12 +1192,19 @@ func _build_outfit_preview() -> Control:
 
 
 ## 预览 = 当前穿着；焦点停在某件衣装上时该槽位即时试穿（override）。
+## 穿连衣裙时上/下装层隐藏（连衣裙覆盖其外观），腿袜在裙摆下仍露出。
 func _refresh_outfit_preview(override_slot: String = "", override_id: String = "") -> void:
-	var slots := ["pants", "top", "hat"]
-	for i in 3:
-		var id := override_id if slots[i] == override_slot else str(GameState.worn_clothes.get(slots[i], ""))
+	var slots: Array = MEMBER_WARDROBE_SLOTS.get(_wardrobe_member, [])
+	var worn: Dictionary = GameState.worn_clothes.get(_wardrobe_member, {})
+	var dress_on := (override_slot == "dress" and override_id != "") \
+			or str(worn.get("dress", "")) != ""
+	for i in slots.size():
+		var slot: String = slots[i]
+		var tr: TextureRect = _preview_layers[i + 1]
+		var id := override_id if slot == override_slot else str(worn.get(slot, ""))
 		var path := "res://assets/images/clothes/%s.png" % id
-		_preview_layers[i + 1].texture = load(path) if id != "" and ResourceLoader.exists(path) else null
+		tr.texture = load(path) if id != "" and ResourceLoader.exists(path) else null
+		tr.visible = tr.texture != null and not (dress_on and (slot == "top" or slot == "pants"))
 
 
 func _refresh_wardrobe() -> void:
@@ -1129,24 +1212,25 @@ func _refresh_wardrobe() -> void:
 		child.queue_free()
 	_menu_message(_wardrobe_box)
 	var banner := Label.new()
-	banner.text = "华丽度 %d · 称号「%s」" % [GameState.glamour_total(), GameState.fashion_title()]
+	banner.text = "华丽度 %d · 称号「%s」" % [
+		GameState.glamour_total(_wardrobe_member), GameState.fashion_title(_wardrobe_member)]
 	banner.add_theme_font_size_override("font_size", 16)
 	banner.add_theme_color_override("font_color", Color("ffd166"))
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_wardrobe_box.add_child(banner)
-	for slot in ["hat", "top", "pants"]:
+	for slot in MEMBER_WARDROBE_SLOTS.get(_wardrobe_member, []):
 		_bag_section(_wardrobe_box, "「%s」槽位" % GameTypes.clothing_slot_name(slot))
 		var any := false
-		for clothing_id in GameState.owned_clothes:
+		for clothing_id in GameState.owned_clothes.get(_wardrobe_member, []):
 			var c: ClothingData = GameData.load_clothing(clothing_id)
 			if c == null or c.slot != slot:
 				continue
 			any = true
-			var worn: bool = GameState.worn_clothes.get(slot, "") == clothing_id
+			var worn: bool = str(GameState.worn_clothes.get(_wardrobe_member, {}).get(slot, "")) == clothing_id
 			var btn := _bag_item_button(
 					c.clothing_name + ("（穿着中）" if worn else ""),
 					"华丽度 +%d" % c.glamour, _glamour_color(c.glamour), 1,
-					_wear_from_wardrobe.bind(slot, clothing_id))
+					_wear_from_wardrobe.bind(_wardrobe_member, slot, clothing_id))
 			btn.disabled = worn
 			btn.focus_entered.connect(_refresh_outfit_preview.bind(slot, clothing_id))  # 选中即试穿
 			_wardrobe_box.add_child(btn)
@@ -1168,10 +1252,11 @@ func _refresh_wardrobe() -> void:
 	_refresh_outfit_preview()
 
 
-func _wear_from_wardrobe(slot: String, clothing_id: String) -> void:
-	if GameState.wear_clothing(slot, clothing_id):
+func _wear_from_wardrobe(member_id: String, slot: String, clothing_id: String) -> void:
+	if GameState.wear_clothing(member_id, slot, clothing_id):
 		var c: ClothingData = GameData.load_clothing(clothing_id)
-		_menu_result.text = "换上了%s（%s）。" % [c.clothing_name, c.slot_name()]
+		_menu_result.text = "%s换上了%s（%s）。" % [
+			MEMBER_NAMES.get(member_id, member_id), c.clothing_name, c.slot_name()]
 	_refresh_wardrobe()
 
 
@@ -1191,6 +1276,7 @@ func _glamour_color(glamour: int) -> Color:
 func _buy_ware(w: Dictionary) -> void:
 	var data_name := ""
 	var price := 0
+	var buying_for := ""
 	if w["kind"] == "item":
 		var item: ItemData = GameData.load_item(w["id"])
 		data_name = item.item_name
@@ -1199,7 +1285,8 @@ func _buy_ware(w: Dictionary) -> void:
 		var cloth: ClothingData = GameData.load_clothing(w["id"])
 		data_name = cloth.clothing_name
 		price = cloth.price
-		if GameState.is_clothing_owned(w["id"]):
+		buying_for = cloth.owner_id
+		if GameState.is_clothing_owned(buying_for, w["id"]):
 			_menu_result.text = "这件衣装已经在衣柜里了。"
 			return
 	else:
@@ -1212,14 +1299,15 @@ func _buy_ware(w: Dictionary) -> void:
 	if w["kind"] == "item":
 		GameState.add_item(w["id"])
 	elif w["kind"] == "clothing":
-		GameState.add_clothing(w["id"])
+		GameState.add_clothing(buying_for, w["id"])
 	else:
 		GameState.add_equip(w["id"])
 	Audio.play_sfx("coin")
 	if w["kind"] == "clothing":
 		var cloth: ClothingData = GameData.load_clothing(w["id"])
-		_menu_result.text = "买下了 %s（华丽度 +%d）。当前称号：%s" % [
-			data_name, cloth.glamour, GameState.fashion_title()]
+		_menu_result.text = "买下了 %s（华丽度 +%d）。%s的称号：%s" % [
+			data_name, cloth.glamour, MEMBER_NAMES.get(buying_for, buying_for),
+			GameState.fashion_title(buying_for)]
 	else:
 		_menu_result.text = "买下了 %s。" % data_name
 	GameEvents.party_status_changed.emit()  # 刷新 HUD 金币
@@ -1283,17 +1371,19 @@ func _refresh_bag() -> void:
 		_bag_box.add_child(btn)
 	# —— 衣装（展示；更换请到杂货铺衣柜）——
 	_bag_section(_bag_box, "衣装 · 更换请到杂货铺的衣柜")
-	for clothing_id in GameState.owned_clothes:
-		var c: ClothingData = GameData.load_clothing(clothing_id)
-		if c == null:
-			continue
-		var worn: bool = GameState.worn_clothes.get(c.slot, "") == clothing_id
-		var btn := _bag_item_button(
-				c.clothing_name + ("（穿着中）" if worn else ""),
-				"%s · 华丽度 +%d" % [c.slot_name(), c.glamour],
-				_glamour_color(c.glamour), 1,
-				func() -> void: _menu_result.text = "更换衣装请到杂货铺的衣柜。")
-		_bag_box.add_child(btn)
+	for member_id in MEMBER_WARDROBE_SLOTS:
+		for clothing_id in GameState.owned_clothes.get(member_id, []):
+			var c: ClothingData = GameData.load_clothing(clothing_id)
+			if c == null:
+				continue
+			var worn: bool = str(GameState.worn_clothes.get(member_id, {}).get(c.slot, "")) == clothing_id
+			var who := "" if member_id == "mo_fan" else "穆宁雪 · "
+			var btn := _bag_item_button(
+					who + c.clothing_name + ("（穿着中）" if worn else ""),
+					"%s · 华丽度 +%d" % [c.slot_name(), c.glamour],
+					_glamour_color(c.glamour), 1,
+					func() -> void: _menu_result.text = "更换衣装请到杂货铺的衣柜。")
+			_bag_box.add_child(btn)
 	var close_btn := Button.new()
 	close_btn.text = "关闭（Esc）"
 	close_btn.pressed.connect(_close_rest_menu)

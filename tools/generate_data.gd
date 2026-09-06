@@ -161,8 +161,9 @@ func _monster(cfg: Dictionary) -> void:
 const CLOTHES_DIR := "res://resources/clothes/"
 
 
-## 衣装：初始三套（骑士/魔法师/剑士，各帽子/上衣/裤子，全部 0 华丽度）+
-## 商店四档价位 10/50/100/1000（华丽度与售价对应）。纯外观，不加属性。
+## 衣装：初始三套（骑士/魔法师/剑士，各帽子/上衣/下装，全部 0 华丽度）+
+## 商店四档价位 10/50/100/1000（华丽度与售价对应）+ 穆宁雪衣装。
+## 纯外观，不加属性。owner_id 决定归属（衣柜按角色过滤，不可混穿）。
 func _gen_clothes() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CLOTHES_DIR))
 	var starters := [
@@ -181,7 +182,7 @@ func _gen_clothes() -> void:
 	]
 	for c in starters:
 		_clothing({"id": c["id"], "clothing_name": c["name"], "slot": c["slot"],
-				"glamour": 0, "price": 0})
+				"glamour": 0, "price": 0, "owner_id": "mo_fan"})
 	var shop_tiers := [
 		{"glamour": 10, "price": 10, "names": ["旅人草帽", "旅人布衣", "旅人长裤"]},
 		{"glamour": 50, "price": 50, "names": ["猎人风帽", "猎人皮衣", "猎人长裤"]},
@@ -193,7 +194,27 @@ func _gen_clothes() -> void:
 		for i in 3:
 			_clothing({"id": "cloth_shop_%d_%s" % [tier["price"], slots[i]],
 					"clothing_name": tier["names"][i], "slot": slots[i],
-					"glamour": tier["glamour"], "price": tier["price"]})
+					"glamour": tier["glamour"], "price": tier["price"], "owner_id": "mo_fan"})
+	# —— 穆宁雪衣装：连衣裙/腿袜槽位为主，覆盖裙装、吊带、礼服、女仆、
+	# 泳装、洛丽塔、哥特与黑丝等风格（华丽度沿用四档价位阶梯）——
+	var xue_items := [
+		{"id": "cloth_xue_dress_uniform", "name": "银白常服", "slot": "dress", "glamour": 0, "price": 0},
+		{"id": "cloth_xue_hosiery_white", "name": "白丝袜", "slot": "hosiery", "glamour": 0, "price": 0},
+		{"id": "cloth_xue_camisole", "name": "夏日吊带", "slot": "top", "glamour": 10, "price": 10},
+		{"id": "cloth_xue_sweater", "name": "蔚蓝毛衣", "slot": "top", "glamour": 10, "price": 10},
+		{"id": "cloth_xue_skirt", "name": "海风短裙", "slot": "pants", "glamour": 10, "price": 10},
+		{"id": "cloth_xue_shorts", "name": "牛仔热裤", "slot": "pants", "glamour": 10, "price": 10},
+		{"id": "cloth_xue_hosiery_black", "name": "黑丝袜", "slot": "hosiery", "glamour": 50, "price": 50},
+		{"id": "cloth_xue_swimsuit", "name": "夏日泳装", "slot": "dress", "glamour": 50, "price": 50},
+		{"id": "cloth_xue_headdress", "name": "银蝶发饰", "slot": "hat", "glamour": 50, "price": 50},
+		{"id": "cloth_xue_maid", "name": "女仆装", "slot": "dress", "glamour": 100, "price": 100},
+		{"id": "cloth_xue_gown", "name": "星夜礼服", "slot": "dress", "glamour": 100, "price": 100},
+		{"id": "cloth_xue_lolita", "name": "甜梦洛丽塔", "slot": "dress", "glamour": 1000, "price": 1000},
+		{"id": "cloth_xue_gothic", "name": "月夜哥特", "slot": "dress", "glamour": 1000, "price": 1000},
+	]
+	for c in xue_items:
+		_clothing({"id": c["id"], "clothing_name": c["name"], "slot": c["slot"],
+				"glamour": c["glamour"], "price": c["price"], "owner_id": "mu_ningxue"})
 
 
 func _clothing(cfg: Dictionary) -> void:

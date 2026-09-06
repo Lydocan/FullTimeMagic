@@ -34,7 +34,7 @@ func _refresh_outfit() -> void:
 
 
 func _set_outfit_layer(layer: Sprite2D, slot: String) -> void:
-	var id: String = GameState.worn_clothes.get(slot, "")
+	var id: String = GameState.worn_clothes.get("mo_fan", {}).get(slot, "")
 	var path := "%s/%s.png" % [CLOTHES_DIR, id]
 	layer.texture = load(path) if id != "" and ResourceLoader.exists(path) else null
 	layer.visible = layer.texture != null

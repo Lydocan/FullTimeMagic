@@ -1,0 +1,11 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://src/data/clothing_data.gd" id="1_o1sq7"]
+
+[resource]
+script = ExtResource("1_o1sq7")
+id = "cloth_xue_sweater"
+clothing_name = "蔚蓝毛衣"
+glamour = 10
+price = 10
+owner_id = "mu_ningxue"

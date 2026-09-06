@@ -58,15 +58,11 @@ func apply_save_data(d: Dictionary) -> bool:
 	GameState.equip_bag = {}
 	for key in d.get("equip_bag", {}):
 		GameState.equip_bag[str(key)] = int(d["equip_bag"][key])
-	GameState.owned_clothes = []
-	GameState.worn_clothes = {}
 	if d.has("owned_clothes"):
-		for clothing_id in d.get("owned_clothes", []):
-			GameState.owned_clothes.append(str(clothing_id))
-		for slot in d.get("worn_clothes", {}):
-			GameState.worn_clothes[str(slot)] = str(d["worn_clothes"][slot])
+		# 兼容旧版单角色格式（owned 为 Array）：apply_wardrobe_save 内部迁移
+		GameState.apply_wardrobe_save(d["owned_clothes"], d.get("worn_clothes", {}))
 	else:
-		GameState._init_wardrobe()  # 旧存档无衣柜字段：补发初始三套
+		GameState._init_wardrobe()  # 旧存档无衣柜字段：补发初始衣柜
 	GameState.flags = {}
 	for key in d.get("flags", {}):
 		GameState.flags[str(key)] = bool(d["flags"][key])

@@ -72,7 +72,7 @@ func setup_triggers() -> void:
 	add_npc(Vector2i(13, 6), "res://assets/images/char_yuang.png",
 			"宇昂", "duel_done",
 			func() -> void: await Story.school_gate(self))
-	# 杂货铺：消耗品与装备（经济闭环）+ 衣装（衣柜系统，10/50/100/1000 四档）
+	# 杂货铺：消耗品与装备（经济闭环）+ 衣装（衣柜系统，莫凡四档 + 穆宁雪衣装）
 	add_merchant(Vector2i(9, 18), "res://assets/images/char_merchant.png",
 			"杂货商·老周", [
 				{"kind": "item", "id": "yuelu"},
@@ -93,6 +93,18 @@ func setup_triggers() -> void:
 				{"kind": "clothing", "id": "cloth_shop_1000_hat"},
 				{"kind": "clothing", "id": "cloth_shop_1000_top"},
 				{"kind": "clothing", "id": "cloth_shop_1000_pants"},
+				# 穆宁雪衣装（吊带/裙装/黑丝/泳装/女仆/礼服/洛丽塔/哥特）
+				{"kind": "clothing", "id": "cloth_xue_camisole"},
+				{"kind": "clothing", "id": "cloth_xue_sweater"},
+				{"kind": "clothing", "id": "cloth_xue_skirt"},
+				{"kind": "clothing", "id": "cloth_xue_shorts"},
+				{"kind": "clothing", "id": "cloth_xue_hosiery_black"},
+				{"kind": "clothing", "id": "cloth_xue_swimsuit"},
+				{"kind": "clothing", "id": "cloth_xue_headdress"},
+				{"kind": "clothing", "id": "cloth_xue_maid"},
+				{"kind": "clothing", "id": "cloth_xue_gown"},
+				{"kind": "clothing", "id": "cloth_xue_lolita"},
+				{"kind": "clothing", "id": "cloth_xue_gothic"},
 			])
 
 

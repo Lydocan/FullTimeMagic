@@ -1,0 +1,12 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://src/data/clothing_data.gd" id="1_cmwgg"]
+
+[resource]
+script = ExtResource("1_cmwgg")
+id = "cloth_xue_swimsuit"
+clothing_name = "夏日泳装"
+slot = "dress"
+glamour = 50
+price = 50
+owner_id = "mu_ningxue"

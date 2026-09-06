@@ -12,6 +12,7 @@ const MAP_SCENES := [
 # 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
 const CharacterState := preload("res://src/data/character_state.gd")
 const PartySetup := preload("res://src/data/party_setup.gd")
+const MapBaseScript := preload("res://src/world/map_base.gd")
 
 
 func _ready() -> void:
@@ -70,32 +71,63 @@ func _test_wardrobe() -> bool:
 	print("[衣柜]")
 	var ok := true
 	GameState.new_game()
-	if GameState.owned_clothes.size() == 9 and GameState.glamour_total() == 0 \
-			and GameState.fashion_title() == "布衣级":
+	if GameState.owned_clothes["mo_fan"].size() == 9 and GameState.glamour_total("mo_fan") == 0 \
+			and GameState.fashion_title("mo_fan") == "布衣级":
 		print("  PASS  初始三套 9 件全 0 华丽度，称号布衣级")
 	else:
 		printerr("  FAIL  初始衣柜异常（%d 件，华丽度 %d，称号 %s）" % [
-			GameState.owned_clothes.size(), GameState.glamour_total(), GameState.fashion_title()])
+			GameState.owned_clothes["mo_fan"].size(), GameState.glamour_total("mo_fan"),
+			GameState.fashion_title("mo_fan")])
 		ok = false
-	if GameState.wear_clothing("hat", "cloth_knight_hat") \
-			and GameState.worn_clothes["hat"] == "cloth_knight_hat":
+	if GameState.wear_clothing("mo_fan", "hat", "cloth_knight_hat") \
+			and GameState.worn_clothes["mo_fan"]["hat"] == "cloth_knight_hat":
 		print("  PASS  衣柜换装（帽子 → 骑士头盔）")
 	else:
 		printerr("  FAIL  换装失败")
 		ok = false
 	GameState.gold += 100
 	if GameState.try_spend(100):
-		GameState.add_clothing("cloth_shop_100_hat")
-	var g: int = GameState.glamour_total()
-	if g == 100 and GameState.fashion_title() == "统领级":
+		GameState.add_clothing("mo_fan", "cloth_shop_100_hat")
+	var g: int = GameState.glamour_total("mo_fan")
+	if g == 100 and GameState.fashion_title("mo_fan") == "统领级":
 		print("  PASS  华丽度 100 → 称号统领级")
 	else:
-		printerr("  FAIL  华丽度 %d，称号 %s" % [g, GameState.fashion_title()])
+		printerr("  FAIL  华丽度 %d，称号 %s" % [g, GameState.fashion_title("mo_fan")])
 		ok = false
-	if not GameState.add_clothing("cloth_shop_100_hat"):
+	if not GameState.add_clothing("mo_fan", "cloth_shop_100_hat"):
 		print("  PASS  重复衣装不重复入手")
 	else:
 		printerr("  FAIL  重复衣装被重复计入")
+		ok = false
+	# —— 穆宁雪：初始连衣裙 + 白丝袜；女仆装 + 黑丝组合；归属校验 ——
+	if GameState.glamour_total("mu_ningxue") == 0 \
+			and GameState.worn_clothes["mu_ningxue"]["dress"] == "cloth_xue_dress_uniform":
+		print("  PASS  穆宁雪初始衣柜（银白常服 + 白丝袜，0 华丽度）")
+	else:
+		printerr("  FAIL  穆宁雪初始衣柜异常")
+		ok = false
+	GameState.gold += 250
+	GameState.add_clothing("mu_ningxue", "cloth_xue_hosiery_black")
+	GameState.add_clothing("mu_ningxue", "cloth_xue_maid")
+	if GameState.wear_clothing("mu_ningxue", "hosiery", "cloth_xue_hosiery_black") \
+			and GameState.wear_clothing("mu_ningxue", "dress", "cloth_xue_maid") \
+			and GameState.glamour_total("mu_ningxue") == 150:
+		print("  PASS  穆宁雪换装（女仆装 + 黑丝，华丽度 150）")
+	else:
+		printerr("  FAIL  穆宁雪换装异常（华丽度 %d）" % GameState.glamour_total("mu_ningxue"))
+		ok = false
+	if not GameState.add_clothing("mo_fan", "cloth_xue_maid"):
+		print("  PASS  衣装归属校验（莫凡买不到穆宁雪的女仆装）")
+	else:
+		printerr("  FAIL  归属校验失效")
+		ok = false
+	# 旧版存档迁移：Array 衣柜 → 迁为莫凡所有，穆宁雪补初始衣柜
+	GameState.apply_wardrobe_save(["cloth_mage_hat", "cloth_mage_top"], {"hat": "cloth_mage_hat"})
+	if GameState.is_clothing_owned("mo_fan", "cloth_mage_hat") \
+			and GameState.is_clothing_owned("mu_ningxue", "cloth_xue_dress_uniform"):
+		print("  PASS  旧版存档迁移（莫凡继承 + 穆宁雪补初始）")
+	else:
+		printerr("  FAIL  旧版存档迁移异常")
 		ok = false
 	return ok
 
@@ -106,12 +138,12 @@ func _test_outfit_visuals() -> bool:
 	print("[换装可视化]")
 	var ok := true
 	GameState.new_game()  # 默认魔法师套装（旗标清空无碍：本测试是最后一项）
-	GameState.add_clothing("cloth_shop_100_top")
-	GameState.add_clothing("cloth_shop_1000_pants")
-	GameState.add_clothing("cloth_shop_100_hat")
-	GameState.wear_clothing("top", "cloth_shop_100_top")
-	GameState.wear_clothing("pants", "cloth_shop_1000_pants")
-	GameState.wear_clothing("hat", "cloth_shop_100_hat")
+	GameState.add_clothing("mo_fan", "cloth_shop_100_top")
+	GameState.add_clothing("mo_fan", "cloth_shop_1000_pants")
+	GameState.add_clothing("mo_fan", "cloth_shop_100_hat")
+	GameState.wear_clothing("mo_fan", "top", "cloth_shop_100_top")
+	GameState.wear_clothing("mo_fan", "pants", "cloth_shop_1000_pants")
+	GameState.wear_clothing("mo_fan", "hat", "cloth_shop_100_hat")
 	var expect := {
 		"HatSprite": "res://assets/images/clothes/cloth_shop_100_hat.png",
 		"TopSprite": "res://assets/images/clothes/cloth_shop_100_top.png",
@@ -154,17 +186,18 @@ func _test_outfit_visuals() -> bool:
 			continue
 		for conn in btn.pressed.get_connections():
 			var cb: Callable = conn["callable"]
-			if cb.get_bound_arguments_count() >= 2 and cb.get_bound_arguments()[1] == "cloth_knight_hat":
+			if cb.get_bound_arguments().has("cloth_knight_hat"):  # 绑定参数含目标衣装 id
 				knight_btn = btn
 	if back_btn == null or knight_btn == null:
 		printerr("  FAIL  衣柜按钮缺失（back=%s knight=%s）" % [back_btn != null, knight_btn != null])
 		return false
 	back_btn.grab_focus()
 	await get_tree().process_frame
-	var before: Texture2D = scene2._preview_layers[3].texture
+	var hat_layer_idx: int = 1 + int(MapBaseScript.MEMBER_WARDROBE_SLOTS["mo_fan"].find("hat"))  # [0]=base，其后按槽位序
+	var before: Texture2D = scene2._preview_layers[hat_layer_idx].texture
 	knight_btn.grab_focus()
 	await get_tree().process_frame
-	var after: Texture2D = scene2._preview_layers[3].texture
+	var after: Texture2D = scene2._preview_layers[hat_layer_idx].texture
 	if before != null and after != null \
 			and after.resource_path.ends_with("cloth_knight_hat.png"):
 		print("  PASS  衣柜焦点即试穿（预览帽层 → 骑士头盔）")
@@ -173,6 +206,31 @@ func _test_outfit_visuals() -> bool:
 			before.resource_path if before != null else "null",
 			after.resource_path if after != null else "null"])
 		ok = false
+	# 跟随者分层换装：穆宁雪入队登场，换连衣裙经信号即时更新跟随者层
+	GameState.add_clothing("mu_ningxue", "cloth_xue_hosiery_black")
+	GameState.add_clothing("mu_ningxue", "cloth_xue_gothic")
+	GameState.join_member(PartySetup.mu_ningxue())
+	await get_tree().process_frame
+	var xue_fl: Node2D = null
+	for f in scene2.followers:
+		if f.member_id == "mu_ningxue":
+			xue_fl = f
+	if xue_fl == null:
+		printerr("  FAIL  穆宁雪跟随者未登场")
+		ok = false
+	else:
+		var dress_sp: Sprite2D = xue_fl.layer_sprites.get("dress")
+		var dress_before: Texture2D = dress_sp.texture  # 初始银白常服
+		GameState.wear_clothing("mu_ningxue", "dress", "cloth_xue_gothic")
+		GameState.wear_clothing("mu_ningxue", "hosiery", "cloth_xue_hosiery_black")
+		var dress_after: Texture2D = dress_sp.texture
+		if dress_before != null and dress_after != null \
+				and dress_after.resource_path != dress_before.resource_path \
+				and dress_after.resource_path.ends_with("cloth_xue_gothic.png"):
+			print("  PASS  跟随者分层换装（穆宁雪银白常服 → 哥特裙）")
+		else:
+			printerr("  FAIL  跟随者换装层未更新")
+			ok = false
 	scene2._close_rest_menu()
 	scene2.free()
 	await get_tree().process_frame

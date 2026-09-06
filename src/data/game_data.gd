@@ -67,6 +67,24 @@ const CLOTHES := {
 	"cloth_shop_1000_hat": "res://resources/clothes/cloth_shop_1000_hat.tres",
 	"cloth_shop_1000_top": "res://resources/clothes/cloth_shop_1000_top.tres",
 	"cloth_shop_1000_pants": "res://resources/clothes/cloth_shop_1000_pants.tres",
+	# 穆宁雪：初始（银白常服 + 白丝袜）
+	"cloth_xue_dress_uniform": "res://resources/clothes/cloth_xue_dress_uniform.tres",
+	"cloth_xue_hosiery_white": "res://resources/clothes/cloth_xue_hosiery_white.tres",
+	# 穆宁雪：商店 10 金
+	"cloth_xue_camisole": "res://resources/clothes/cloth_xue_camisole.tres",
+	"cloth_xue_sweater": "res://resources/clothes/cloth_xue_sweater.tres",
+	"cloth_xue_skirt": "res://resources/clothes/cloth_xue_skirt.tres",
+	"cloth_xue_shorts": "res://resources/clothes/cloth_xue_shorts.tres",
+	# 穆宁雪：商店 50 金
+	"cloth_xue_hosiery_black": "res://resources/clothes/cloth_xue_hosiery_black.tres",
+	"cloth_xue_swimsuit": "res://resources/clothes/cloth_xue_swimsuit.tres",
+	"cloth_xue_headdress": "res://resources/clothes/cloth_xue_headdress.tres",
+	# 穆宁雪：商店 100 金
+	"cloth_xue_maid": "res://resources/clothes/cloth_xue_maid.tres",
+	"cloth_xue_gown": "res://resources/clothes/cloth_xue_gown.tres",
+	# 穆宁雪：商店 1000 金
+	"cloth_xue_lolita": "res://resources/clothes/cloth_xue_lolita.tres",
+	"cloth_xue_gothic": "res://resources/clothes/cloth_xue_gothic.tres",
 }
 
 

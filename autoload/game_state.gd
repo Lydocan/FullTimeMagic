@@ -21,9 +21,9 @@ var essences: Dictionary = {}
 var items: Dictionary = {}
 ## 未装备的装备：{equip_id: count}
 var equip_bag: Dictionary = {}
-## 衣柜：拥有的衣装 id（纯外观 + 华丽度，见衣装数据定义）。
-var owned_clothes: Array = []
-## 当前穿着：{"hat"/"top"/"pants": clothing_id}。
+## 衣柜（按角色）：{member_id: [clothing_id]}，纯外观 + 华丽度。
+var owned_clothes: Dictionary = {}
+## 当前穿着（按角色）：{member_id: {slot: clothing_id}}。
 var worn_clothes: Dictionary = {}
 ## 剧情旗标：{flag: true}
 var flags: Dictionary = {}
@@ -69,47 +69,67 @@ func new_game() -> void:
 	GameEvents.party_status_changed.emit()
 
 
-## 初始衣柜：三套免费套装全数入手（骑士/魔法师/剑士，各 0 华丽度），
-## 默认穿着魔法师套装（莫凡的本行）。
+## 初始衣柜：莫凡三套免费套装全数入手（骑士/魔法师/剑士，各 0 华丽度），
+## 默认穿着魔法师套装（本行）；穆宁雪初始银白常服 + 白丝袜。
 func _init_wardrobe() -> void:
-	owned_clothes = [
-		"cloth_knight_hat", "cloth_knight_top", "cloth_knight_pants",
-		"cloth_mage_hat", "cloth_mage_top", "cloth_mage_pants",
-		"cloth_sword_hat", "cloth_sword_top", "cloth_sword_pants",
-	]
-	worn_clothes = {"hat": "cloth_mage_hat", "top": "cloth_mage_top", "pants": "cloth_mage_pants"}
+	owned_clothes = {}
+	worn_clothes = {}
+	_init_member_wardrobe("mo_fan")
+	_init_member_wardrobe("mu_ningxue")
 
 
-## —— 衣柜：华丽度与称号 ——
+func _init_member_wardrobe(member_id: String) -> void:
+	owned_clothes[member_id] = []
+	worn_clothes[member_id] = {}
+	if member_id == "mo_fan":
+		for id in ["cloth_knight_hat", "cloth_knight_top", "cloth_knight_pants",
+				"cloth_mage_hat", "cloth_mage_top", "cloth_mage_pants",
+				"cloth_sword_hat", "cloth_sword_top", "cloth_sword_pants"]:
+			owned_clothes[member_id].append(id)
+		worn_clothes[member_id] = {
+			"hat": "cloth_mage_hat", "top": "cloth_mage_top", "pants": "cloth_mage_pants"}
+	else:
+		owned_clothes[member_id] = ["cloth_xue_dress_uniform", "cloth_xue_hosiery_white"]
+		worn_clothes[member_id] = {"dress": "cloth_xue_dress_uniform", "hosiery": "cloth_xue_hosiery_white"}
 
-func is_clothing_owned(clothing_id: String) -> bool:
-	return clothing_id in owned_clothes
+
+## —— 衣柜：华丽度与称号（按角色）——
+
+func is_clothing_owned(member_id: String, clothing_id: String) -> bool:
+	return owned_clothes.get(member_id, []).has(clothing_id)
 
 
-## 购得新衣装（重复入手忽略）。返回是否实际入手。
-func add_clothing(clothing_id: String) -> bool:
-	if is_clothing_owned(clothing_id):
+## 购得新衣装（重复入手忽略；校验归属）。返回是否实际入手。
+func add_clothing(member_id: String, clothing_id: String) -> bool:
+	var c: ClothingData = GameData.load_clothing(clothing_id)
+	if c == null or c.owner_id != member_id:
 		return false
-	owned_clothes.append(clothing_id)
+	if not owned_clothes.has(member_id):
+		owned_clothes[member_id] = []
+	if is_clothing_owned(member_id, clothing_id):
+		return false
+	owned_clothes[member_id].append(clothing_id)
 	return true
 
 
-## 换上某件已拥有的衣装。返回是否成功。
-func wear_clothing(slot: String, clothing_id: String) -> bool:
-	if not is_clothing_owned(clothing_id):
+## 换上某件已拥有的衣装（校验槽位与归属）。返回是否成功。
+func wear_clothing(member_id: String, slot: String, clothing_id: String) -> bool:
+	if not is_clothing_owned(member_id, clothing_id):
 		return false
 	var c: ClothingData = GameData.load_clothing(clothing_id)
-	if c == null or c.slot != slot:
+	if c == null or c.slot != slot or c.owner_id != member_id:
 		return false
-	worn_clothes[slot] = clothing_id
-	GameEvents.clothes_changed.emit()  # 玩家分层外观即时刷新
+	if not worn_clothes.has(member_id):
+		worn_clothes[member_id] = {}
+	worn_clothes[member_id][slot] = clothing_id
+	GameEvents.clothes_changed.emit()  # 分层外观即时刷新
 	return true
 
 
-## 华丽度 = 拥有所有衣装的华丽度总和（与是否穿着无关）。
-func glamour_total() -> int:
+## 华丽度 = 该角色拥有所有衣装的华丽度总和（与是否穿着无关）。
+func glamour_total(member_id: String) -> int:
 	var total := 0
-	for clothing_id in owned_clothes:
+	for clothing_id in owned_clothes.get(member_id, []):
 		var c: ClothingData = GameData.load_clothing(clothing_id)
 		if c != null:
 			total += c.glamour
@@ -117,8 +137,35 @@ func glamour_total() -> int:
 
 
 ## 当前时尚称号（华丽度阶梯，见全局类型表的 FASHION_TITLES）。
-func fashion_title() -> String:
-	return GameTypes.fashion_title(glamour_total())
+func fashion_title(member_id: String) -> String:
+	return GameTypes.fashion_title(glamour_total(member_id))
+
+
+## 存档回填衣柜；兼容旧版单角色格式（owned 为 Array = 莫凡），缺失角色补初始。
+func apply_wardrobe_save(owned: Variant, worn: Variant) -> void:
+	owned_clothes = {}
+	worn_clothes = {}
+	if owned is Array:
+		owned_clothes["mo_fan"] = []
+		for clothing_id in owned:
+			owned_clothes["mo_fan"].append(str(clothing_id))
+		worn_clothes["mo_fan"] = {}
+		if worn is Dictionary:
+			for slot in worn:
+				worn_clothes["mo_fan"][str(slot)] = str(worn[slot])
+		_init_member_wardrobe("mu_ningxue")
+		return
+	for member_id in owned:
+		owned_clothes[str(member_id)] = []
+		for clothing_id in owned[member_id]:
+			owned_clothes[str(member_id)].append(str(clothing_id))
+	for member_id in worn:
+		worn_clothes[str(member_id)] = {}
+		for slot in worn[member_id]:
+			worn_clothes[str(member_id)][str(slot)] = str(worn[member_id][slot])
+	for member_id in ["mo_fan", "mu_ningxue"]:
+		if not owned_clothes.has(member_id):
+			_init_member_wardrobe(member_id)
 
 
 ## 剧情入队。
