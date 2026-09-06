@@ -13,5 +13,9 @@ extends Resource
 @export var price: int = 0
 
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const GameTypes := preload("res://src/data/game_types.gd")
+
+
 func slot_name() -> String:
 	return GameTypes.clothing_slot_name(slot)

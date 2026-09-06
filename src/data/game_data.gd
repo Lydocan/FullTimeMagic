@@ -3,8 +3,12 @@ class_name GameData
 ##
 ## 正式版可迁移为自动扫描 resources/ 目录，原型期用显式注册表。
 
-## 衣装脚本：按路径 preload，不依赖 class_name 全局缓存（docs/lessons.md 踩坑 12/18）。
-const ClothingDataScript := preload("res://src/data/clothing_data.gd")
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const SpellData := preload("res://src/data/spell_data.gd")
+const MonsterData := preload("res://src/data/monster_data.gd")
+const ItemData := preload("res://src/data/item_data.gd")
+const EquipData := preload("res://src/data/equip_data.gd")
+const ClothingData := preload("res://src/data/clothing_data.gd")
 
 const SPELLS := {
 	"lei_yin": "res://resources/spells/lei_yin.tres",
@@ -83,5 +87,5 @@ static func load_equip(id: String) -> EquipData:
 	return load(EQUIPS[id]) as EquipData
 
 
-static func load_clothing(id: String) -> ClothingDataScript:
-	return load(CLOTHES[id]) as ClothingDataScript
+static func load_clothing(id: String) -> ClothingData:
+	return load(CLOTHES[id]) as ClothingData

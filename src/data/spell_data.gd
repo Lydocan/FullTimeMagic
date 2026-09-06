@@ -2,6 +2,9 @@ class_name SpellData
 extends Resource
 ## 法术数据（.tres 数据驱动，实例见 resources/spells/）。
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const GameTypes := preload("res://src/data/game_types.gd")
+
 @export var id: String = ""
 @export var spell_name: String = ""
 @export var element: GameTypes.Element = GameTypes.Element.FIRE

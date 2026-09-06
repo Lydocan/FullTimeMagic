@@ -5,9 +5,14 @@ extends RefCounted
 ## 位阶规则（仿原著，弃用传统等级）见 docs/world.md：
 ## 每个元素系独立修炼，阶 × 星级，三星圆满进入瓶颈，突破后晋阶。
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const GameTypes := preload("res://src/data/game_types.gd")
+const SpellData := preload("res://src/data/spell_data.gd")
+const GameData := preload("res://src/data/game_data.gd")
+
 var id: String = ""
 var char_name: String = ""
-## 觉醒的元素系（GameTypes.Element），双系者如莫凡为 [雷, 火]。
+## 觉醒的元素系（元素枚举值），双系者如莫凡为 [雷, 火]。
 var elements: Array = []
 ## 当前主修系。莫凡可在营地改修，战斗中切换形态即切换施法系。
 var main_element: int = GameTypes.Element.FIRE
@@ -98,7 +103,7 @@ func star_bonus() -> Dictionary:
 	return {"max_hp": lit * 6, "max_mp": lit * 2, "magic": lit}
 
 
-## 装备属性加成（equips 里登记的 EquipData 求和）。
+## 装备属性加成（equips 里登记的装备求和）。
 func equip_bonus() -> Dictionary:
 	var out := {"max_hp": 0, "max_mp": 0, "magic": 0, "defense": 0}
 	for slot in equips:

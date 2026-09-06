@@ -38,7 +38,7 @@ const STAGE_NAMES := ["初阶", "中阶", "高阶", "超阶"]
 const STAR_NAMES := ["一星", "二星", "三星"]
 const MONSTER_TIER_NAMES := ["奴仆级", "战将级", "统领级", "君主级"]
 
-## 衣柜部位名（ClothingData.slot → 显示名）。
+## 衣柜部位名（衣装数据的 slot 字段 → 显示名）。
 const CLOTHING_SLOT_NAMES := {"hat": "帽子", "top": "上衣", "pants": "裤子"}
 
 ## 华丽度称号阶梯——参考战力体系称呼（奴仆级化用为初始的「布衣级」，

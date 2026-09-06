@@ -4,7 +4,7 @@ extends Resource
 
 @export var id: String = ""
 @export var monster_name: String = ""
-## 妖魔等阶（GameTypes.MonsterTier）：奴仆/战将/统领/君主，与玩家位阶同尺度。
+## 妖魔等阶：0=奴仆级 1=战将级 2=统领级 3=君主级，与玩家位阶同尺度。
 ## 与玩家阶差（tier - 队伍最高阶）驱动战斗内的等级压制，见 battle.gd。
 @export var tier: int = 0
 ## 妖魔等级显示名（由 tier 决定，数据里冗余一份便于编辑器查看）。
@@ -12,7 +12,7 @@ extends Resource
 ## 等级压制的强弱系数：0 = 不受压制（人类对手/决斗对等），
 ## 0.5 = 虚弱个体（如林地先遣狼王），1.0 = 完整压制。
 @export_range(0.0, 1.0) var suppression_scale: float = 1.0
-## 元素归属（GameTypes.Element；-1 = 野性无属）。技能名与施法特效配色用。
+## 元素归属（元素枚举值；-1 = 野性无属）。技能名与施法特效配色用。
 @export var element: int = -1
 @export var max_hp: int = 30
 @export var speed: int = 5
@@ -20,7 +20,7 @@ extends Resource
 @export var defense: int = 2
 ## 魔盾数：命中弱点削减，归零即破魔（眩晕一回合，承伤加深）。
 @export_range(0, 5) var shield: int = 1
-## 弱点元素列表（元素为 GameTypes.Element 的 int）。
+## 弱点元素列表（元素枚举值的 int）。
 @export var weaknesses: Array = []
 ## 击杀修为（每位存活成员各得）。
 @export var xp_value: int = 8

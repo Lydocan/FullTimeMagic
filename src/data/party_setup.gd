@@ -3,6 +3,11 @@ class_name PartySetup
 ##
 ## 原型期硬编码；正式版迁移为 CharacterData .tres + 剧情加入事件。
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+const GameData := preload("res://src/data/game_data.gd")
+const GameTypes := preload("res://src/data/game_types.gd")
+
 static func mo_fan() -> CharacterState:
 	var c := CharacterState.create({
 		"id": "mo_fan",
