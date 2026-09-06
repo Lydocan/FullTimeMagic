@@ -54,11 +54,26 @@ func _ready() -> void:
 	await _wait(0.4)
 	await _snap("10_bag_ornate.png")
 	city._close_rest_menu()
-	# —— 衣柜验收：华丽度与称号 ——
+	# —— 衣柜验收：华丽度与称号 + 试穿预览 ——
 	city._open_wardrobe()
 	await _wait(0.4)
 	await _snap("11_wardrobe.png")
+	# 换装可视化：穿高档混搭拍预览与地图效果，再换回魔法师套装对比
+	GameState.add_clothing("cloth_shop_1000_pants")
+	GameState.wear_clothing("hat", "cloth_shop_100_hat")
+	GameState.wear_clothing("top", "cloth_shop_1000_top")
+	GameState.wear_clothing("pants", "cloth_shop_1000_pants")
+	city._refresh_wardrobe()
+	await _wait(0.4)
+	await _snap("12_wardrobe_tryon_preview.png")
 	city._close_rest_menu()
+	await _wait(0.5)
+	await _snap("13_map_outfit_dressed.png")
+	GameState.wear_clothing("hat", "cloth_mage_hat")
+	GameState.wear_clothing("top", "cloth_mage_top")
+	GameState.wear_clothing("pants", "cloth_mage_pants")
+	await _wait(0.5)
+	await _snap("14_map_outfit_mage.png")
 	city.free()
 	await _scene_frame()
 

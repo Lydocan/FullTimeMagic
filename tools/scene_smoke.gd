@@ -58,6 +58,8 @@ func _ready() -> void:
 	ok = me_ok and ok
 	var wd_ok: bool = _test_wardrobe()
 	ok = wd_ok and ok
+	var ov_ok: bool = await _test_outfit_visuals()
+	ok = ov_ok and ok
 	print("=== 场景冒烟 %s ===" % ("通过" if ok else "失败"))
 	get_tree().quit(0 if ok else 1)
 
@@ -95,6 +97,85 @@ func _test_wardrobe() -> bool:
 	else:
 		printerr("  FAIL  重复衣装被重复计入")
 		ok = false
+	return ok
+
+
+## 换装可视化：玩家分层衣装随 worn_clothes 换图、地图重建后保持、
+## 衣柜焦点即试穿（预览层纹理切换）。
+func _test_outfit_visuals() -> bool:
+	print("[换装可视化]")
+	var ok := true
+	GameState.new_game()  # 默认魔法师套装（旗标清空无碍：本测试是最后一项）
+	GameState.add_clothing("cloth_shop_100_top")
+	GameState.add_clothing("cloth_shop_1000_pants")
+	GameState.add_clothing("cloth_shop_100_hat")
+	GameState.wear_clothing("top", "cloth_shop_100_top")
+	GameState.wear_clothing("pants", "cloth_shop_1000_pants")
+	GameState.wear_clothing("hat", "cloth_shop_100_hat")
+	var expect := {
+		"HatSprite": "res://assets/images/clothes/cloth_shop_100_hat.png",
+		"TopSprite": "res://assets/images/clothes/cloth_shop_100_top.png",
+		"PantsSprite": "res://assets/images/clothes/cloth_shop_1000_pants.png",
+	}
+	var scene: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(scene)
+	await get_tree().process_frame
+	var wrong := ""
+	for layer_name in expect:
+		var sp: Sprite2D = scene.get("player").get_node(layer_name)
+		if sp.texture == null or sp.texture.resource_path != expect[layer_name]:
+			wrong += layer_name + " "
+	if wrong == "":
+		print("  PASS  玩家三层衣装随 worn_clothes 换图")
+	else:
+		printerr("  FAIL  换装层贴图不符：%s" % wrong)
+		ok = false
+	# 地图重建（读档/跨图等价路径）→ 外观保持
+	scene.free()
+	await get_tree().process_frame
+	var scene2: Node = (load("res://src/world/bo_city/bo_city.tscn") as PackedScene).instantiate()
+	add_child(scene2)
+	await get_tree().process_frame
+	var hat_sp: Sprite2D = scene2.get("player").get_node("HatSprite")
+	if hat_sp.texture != null and hat_sp.texture.resource_path == expect["HatSprite"]:
+		print("  PASS  地图重建后外观保持（读档/跨图等价）")
+	else:
+		printerr("  FAIL  重建后外观丢失")
+		ok = false
+	# 衣柜焦点即试穿：列表首个按钮已被 _focus_menu 聚焦，先挪到「返回」再聚焦
+	# 骑士头盔，保证 focus_entered 必然触发一次切换
+	scene2._open_wardrobe()
+	await get_tree().process_frame
+	var back_btn: BaseButton = null
+	var knight_btn: BaseButton = null
+	for btn in scene2._wardrobe_box.find_children("*", "Button", true, false):
+		if btn.text == "返回杂货铺":  # 普通按钮有真 text；衣装按钮的文字在内嵌 Label 里
+			back_btn = btn
+			continue
+		for conn in btn.pressed.get_connections():
+			var cb: Callable = conn["callable"]
+			if cb.get_bound_arguments_count() >= 2 and cb.get_bound_arguments()[1] == "cloth_knight_hat":
+				knight_btn = btn
+	if back_btn == null or knight_btn == null:
+		printerr("  FAIL  衣柜按钮缺失（back=%s knight=%s）" % [back_btn != null, knight_btn != null])
+		return false
+	back_btn.grab_focus()
+	await get_tree().process_frame
+	var before: Texture2D = scene2._preview_layers[3].texture
+	knight_btn.grab_focus()
+	await get_tree().process_frame
+	var after: Texture2D = scene2._preview_layers[3].texture
+	if before != null and after != null \
+			and after.resource_path.ends_with("cloth_knight_hat.png"):
+		print("  PASS  衣柜焦点即试穿（预览帽层 → 骑士头盔）")
+	else:
+		printerr("  FAIL  预览未随焦点切换（before=%s after=%s）" % [
+			before.resource_path if before != null else "null",
+			after.resource_path if after != null else "null"])
+		ok = false
+	scene2._close_rest_menu()
+	scene2.free()
+	await get_tree().process_frame
 	return ok
 
 

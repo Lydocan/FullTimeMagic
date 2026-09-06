@@ -12,6 +12,7 @@ func _initialize() -> void:
 	rng.seed = 20260831
 	_tiles()
 	_characters()
+	_outfits()
 	_portraits()
 	_monsters()
 	_battle_bg()
@@ -767,3 +768,232 @@ func _campfire() -> void:
 	_rect(img, 6, 7, 4, 5, Color("ffd166"))    # 焰心
 	_rect(img, 7, 2, 2, 4, Color("ff9d3c"))
 	_save(img, "campfire.png")
+
+
+## —— 分层换装（踩坑：衣柜只改数据看不见，"美美的换装"要求人物真的穿上）——
+## 24x32 透明底层片，与 char_mofan_base 的分区对位：
+##   帽 y0-9（盖头发 y2-8）/ 上衣 躯干 x6-17,y13-21 + 两臂 x4-5、x18-20 /
+##   裤 两腿 x8-10、x13-15,y22-28 + 鞋 y29-30。
+## 绘制顺序：base 身体 → 裤 → 上衣 → 帽。char_mofan.png 本体保留不动
+## （战斗小人 / MEMBER_TEXTURES / 立绘仍引用它）。
+
+const CLOTHES_DIR := "res://assets/images/clothes/"
+
+
+func _outfits() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CLOTHES_DIR))
+	_mofan_base()
+	_cloth_knight()
+	_cloth_mage()
+	_cloth_sword()
+	_cloth_traveler()
+	_cloth_hunter()
+	_cloth_noble()
+	_cloth_monarch()
+
+
+func _save_cloth(img: Image, fname: String) -> void:
+	var err := img.save_png(CLOTHES_DIR + fname)
+	print("生成 clothes/%s -> %s" % [fname, "成功" if err == OK else "失败(%d)" % err])
+
+
+## 无衣基础身体：头部复刻莫凡，身体浅灰打底（背心+短裤）、四肢露肤、无鞋。
+func _mofan_base() -> void:
+	var b := _img(24, 32)
+	_rect(b, 7, 2, 10, 6, Color("2a2a35"))
+	_rect(b, 6, 3, 2, 4, Color("2a2a35"))      # 侧发翘起
+	_rect(b, 16, 3, 2, 3, Color("2a2a35"))
+	_rect(b, 8, 2, 7, 2, Color("3d3d4d"))      # 发顶高光
+	_rect(b, 8, 7, 8, 5, Color("e8c39a"))
+	_rect(b, 8, 7, 8, 1, Color("d4a884"))      # 发影
+	_rect(b, 9, 9, 2, 2, Color("e8e8f0"))
+	_rect(b, 10, 9, 1, 2, Color("303038"))
+	_rect(b, 13, 9, 2, 2, Color("e8e8f0"))
+	_rect(b, 14, 9, 1, 2, Color("303038"))
+	_rect(b, 10, 9, 1, 1, Color("ffffff"))
+	_rect(b, 14, 9, 1, 1, Color("ffffff"))
+	_rect(b, 9, 8, 6, 1, Color("303038"))      # 剑眉
+	_rect(b, 10, 12, 4, 1, Color("c9946a"))    # 嘴
+	_rect(b, 6, 13, 12, 9, Color("d8d8e0"))    # 背心
+	_rect(b, 6, 13, 12, 2, Color("e4e4ea"))
+	_rect(b, 4, 14, 2, 6, Color("e8c39a"))     # 左臂
+	_rect(b, 18, 14, 3, 5, Color("e8c39a"))    # 右臂
+	_rect(b, 19, 19, 2, 2, Color("e8c39a"))    # 手
+	_rect(b, 7, 22, 10, 3, Color("c8c8d2"))    # 短裤
+	_rect(b, 8, 25, 3, 5, Color("e8c39a"))     # 左腿
+	_rect(b, 13, 25, 3, 5, Color("dcc0a0"))    # 右腿
+	_save(b, "char_mofan_base.png")
+
+
+## 上衣基形：躯干 + 衣领 + 衣襟 + 下摆 + 两袖（各套装在其上叠加特征）。
+func _top_base(img: Image, main: Color, dark: Color, light: Color) -> void:
+	_rect(img, 6, 13, 12, 9, main)
+	_rect(img, 6, 13, 12, 2, light)    # 领口
+	_rect(img, 11, 15, 2, 7, dark)     # 衣襟
+	_rect(img, 7, 20, 10, 1, dark)     # 下摆阴影
+	_rect(img, 4, 14, 2, 6, dark)      # 左袖
+	_rect(img, 18, 14, 3, 5, dark)     # 右袖
+	_rect(img, 19, 19, 2, 2, Color("e8c39a"))  # 手（上衣层带上手，避免换袖后断手）
+
+
+## 裤装基形：两腿 + 鞋。
+func _pants_base(img: Image, leg_l: Color, leg_r: Color, shoe: Color) -> void:
+	_rect(img, 8, 22, 3, 7, leg_l)
+	_rect(img, 13, 22, 3, 7, leg_r)
+	_rect(img, 7, 29, 4, 2, shoe)
+	_rect(img, 13, 29, 3, 2, shoe)
+
+
+## 骑士（初始）：银铠 + 红缨盔。
+func _cloth_knight() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 6, 1, 12, 7, Color("c8ccd8"))
+	_rect(hat, 6, 1, 12, 2, Color("e0e4ee"))
+	_rect(hat, 7, 7, 10, 2, Color("9aa0b2"))   # 盔檐
+	_rect(hat, 16, 0, 3, 5, Color("b03434"))   # 红缨
+	_rect(hat, 16, 0, 1, 5, Color("d24a4a"))
+	_save_cloth(hat, "cloth_knight_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("c8ccd8"), Color("9aa0b2"), Color("e0e4ee"))
+	_rect(top, 6, 13, 12, 2, Color("b03434"))  # 红领巾
+	_rect(top, 3, 13, 3, 4, Color("8a8f9e"))   # 肩甲
+	_rect(top, 18, 13, 3, 4, Color("8a8f9e"))
+	_rect(top, 10, 16, 4, 3, Color("ffd166"))  # 胸徽
+	_save_cloth(top, "cloth_knight_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("6a6f7e"), Color("5d6270"), Color("3f434e"))
+	_rect(pants, 8, 22, 3, 2, Color("8a8f9e"))  # 腿甲
+	_rect(pants, 13, 22, 3, 2, Color("8a8f9e"))
+	_save_cloth(pants, "cloth_knight_pants.png")
+
+
+## 魔法师（初始）：蓝袍 + 尖顶帽（莫凡本行，配色复刻 char_mofan）。
+func _cloth_mage() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 11, 0, 2, 2, Color("3b4a8c"))
+	_rect(hat, 9, 2, 6, 2, Color("3b4a8c"))
+	_rect(hat, 7, 4, 10, 3, Color("3b4a8c"))
+	_rect(hat, 8, 4, 8, 1, Color("46569e"))
+	_rect(hat, 5, 7, 14, 2, Color("46569e"))   # 帽檐
+	_rect(hat, 12, 3, 1, 1, Color("ffd166"))   # 星饰
+	_save_cloth(hat, "cloth_mage_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("3b4a8c"), Color("324077"), Color("46569e"))
+	_save_cloth(top, "cloth_mage_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("2c2c34"), Color("26262e"), Color("1d1d24"))
+	_save_cloth(pants, "cloth_mage_pants.png")
+
+
+## 剑士（初始）：白青劲装 + 束发飘带。
+func _cloth_sword() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 6, 4, 12, 2, Color("e8e4da"))   # 发带
+	_rect(hat, 6, 4, 12, 1, Color("f4f2ea"))
+	_rect(hat, 16, 5, 2, 5, Color("c8b04a"))   # 飘带
+	_rect(hat, 17, 9, 1, 2, Color("a88f3a"))
+	_save_cloth(hat, "cloth_sword_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("e8e4da"), Color("c2beb2"), Color("f4f2ea"))
+	_rect(top, 11, 15, 2, 7, Color("5a8ae0"))  # 青衣襟
+	_rect(top, 6, 18, 12, 1, Color("c8b04a"))  # 束腰
+	_save_cloth(top, "cloth_sword_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("b8b8c0"), Color("a8a8b2"), Color("4a6d9c"))
+	_save_cloth(pants, "cloth_sword_pants.png")
+
+
+## 旅人（商店 10 金，华丽度色标：绿）：斗篷 + 斗笠。
+func _cloth_traveler() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 12, 1, 1, 2, Color("8a744f"))   # 斗笠尖
+	_rect(hat, 9, 3, 7, 2, Color("b39b72"))
+	_rect(hat, 5, 5, 15, 2, Color("b39b72"))
+	_rect(hat, 5, 6, 15, 1, Color("8a744f"))
+	_save_cloth(hat, "cloth_shop_10_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("7dde8a"), Color("5cb86e"), Color("98e8a4"))
+	_rect(top, 6, 14, 2, 8, Color("4da55c"))   # 披风边
+	_rect(top, 18, 14, 3, 8, Color("4da55c"))
+	_rect(top, 9, 13, 6, 1, Color("c8b04a"))   # 系带
+	_save_cloth(top, "cloth_shop_10_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("8a6f4f"), Color("7a6145"), Color("6b4a2f"))
+	_save_cloth(pants, "cloth_shop_10_pants.png")
+
+
+## 猎人（商店 50 金，色标：蓝）：皮甲 + 护额皮帽。
+func _cloth_hunter() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 7, 1, 10, 5, Color("8a6238"))
+	_rect(hat, 7, 1, 10, 1, Color("a87a4a"))
+	_rect(hat, 6, 5, 12, 2, Color("6b4a2f"))   # 护额
+	_rect(hat, 10, 5, 4, 1, Color("c8b04a"))
+	_save_cloth(hat, "cloth_shop_50_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("8a6238"), Color("6b4a2f"), Color("a87a4a"))
+	_rect(top, 6, 13, 12, 2, Color("5a8ae0"))  # 蓝内衬领
+	_rect(top, 6, 19, 12, 1, Color("553d28"))  # 皮带
+	_rect(top, 11, 19, 2, 1, Color("c8b04a"))  # 带扣
+	_save_cloth(top, "cloth_shop_50_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("6b4a2f"), Color("5c4029"), Color("3f2d1e"))
+	_save_cloth(pants, "cloth_shop_50_pants.png")
+
+
+## 贵族（商店 100 金，色标：紫）：华服 + 宽檐帽。
+func _cloth_noble() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 8, 1, 8, 4, Color("7c5ab0"))    # 帽体
+	_rect(hat, 8, 1, 8, 1, Color("9a78cc"))
+	_rect(hat, 4, 5, 16, 1, Color("6a4a9c"))   # 宽檐
+	_rect(hat, 4, 6, 16, 1, Color("59397f"))
+	_rect(hat, 11, 2, 2, 1, Color("ffd166"))   # 宝石
+	_save_cloth(hat, "cloth_shop_100_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("c792ff"), Color("a874e0"), Color("dcb4ff"))
+	_rect(top, 6, 13, 12, 1, Color("ffd166"))  # 金边领
+	_rect(top, 11, 15, 2, 7, Color("8a5ec2"))
+	_rect(top, 8, 13, 2, 2, Color("e8e4da"))   # 白衬领
+	_save_cloth(top, "cloth_shop_100_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("e8e4da"), Color("d8d4ca"), Color("c8b04a"))
+	_save_cloth(pants, "cloth_shop_100_pants.png")
+
+
+## 君王（商店 1000 金，色标：金）：金袍大红披风 + 王冠。
+func _cloth_monarch() -> void:
+	var hat := _img(24, 32)
+	_rect(hat, 8, 2, 8, 3, Color("ffd166"))    # 冠体
+	_rect(hat, 8, 1, 1, 2, Color("ffd166"))    # 冠齿
+	_rect(hat, 12, 0, 1, 3, Color("ffd166"))
+	_rect(hat, 15, 1, 1, 2, Color("ffd166"))
+	_rect(hat, 8, 4, 8, 1, Color("d8b06a"))
+	_rect(hat, 12, 2, 1, 1, Color("c792ff"))   # 宝石
+	_save_cloth(hat, "cloth_shop_1000_hat.png")
+
+	var top := _img(24, 32)
+	_top_base(top, Color("ffd166"), Color("d8b06a"), Color("ffe494"))
+	_rect(top, 2, 12, 2, 12, Color("b03434"))  # 大红披风（肩后垂坠）
+	_rect(top, 21, 12, 2, 12, Color("b03434"))
+	_rect(top, 2, 12, 2, 1, Color("d24a4a"))
+	_rect(top, 21, 12, 2, 1, Color("d24a4a"))
+	_rect(top, 10, 16, 4, 4, Color("c792ff"))  # 胸纹
+	_rect(top, 6, 13, 12, 1, Color("fff4cf"))  # 金领
+	_save_cloth(top, "cloth_shop_1000_top.png")
+
+	var pants := _img(24, 32)
+	_pants_base(pants, Color("d8b06a"), Color("c8a05c"), Color("c8b04a"))
+	_save_cloth(pants, "cloth_shop_1000_pants.png")

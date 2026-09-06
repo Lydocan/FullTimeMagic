@@ -12,6 +12,9 @@ signal encounter_started(enemy_ids: Array)
 ## 战斗结束（victory 是否胜利；fled 表示逃跑）。
 signal battle_finished(victory: bool, fled: bool)
 
+## 换装后广播（地图上的玩家刷新分层衣装外观）。
+signal clothes_changed
+
 ## —— 成长（位阶体系）——
 
 ## 获得修为。

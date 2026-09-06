@@ -102,6 +102,7 @@ func wear_clothing(slot: String, clothing_id: String) -> bool:
 	if c == null or c.slot != slot:
 		return false
 	worn_clothes[slot] = clothing_id
+	GameEvents.clothes_changed.emit()  # 玩家分层外观即时刷新
 	return true
 
 

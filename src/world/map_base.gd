@@ -1057,14 +1057,71 @@ func _refresh_shop() -> void:
 ## 更换衣装、查看华丽度与时尚称号（华丽度 = 拥有所有衣装的华丽度总和）。
 
 var _wardrobe_box: VBoxContainer
+var _preview_layers: Array[TextureRect] = []
 
 
 func _open_wardrobe() -> void:
 	if _menu != null or _event_running:
 		return
 	player.input_enabled = false
-	_wardrobe_box = _menu_base("衣柜", 480)
+	var body: VBoxContainer = _menu_base("衣柜", 560)
+	# 左：试穿预览（键盘焦点移到哪件，小人即时试穿）｜右：槽位分组列表
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 16)
+	columns.add_child(_build_outfit_preview())
+	_wardrobe_box = VBoxContainer.new()
+	_wardrobe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(_wardrobe_box)
+	body.add_child(columns)
 	_refresh_wardrobe()
+
+
+## 试穿预览面板：4 层贴图（base 身体/裤/上衣/帽）24x32 → 4x，NEAREST 保像素锐利。
+func _build_outfit_preview() -> Control:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.05, 0.14, 0.94)
+	style.border_color = Color("c792ff")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 8
+	style.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", style)
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN  # 贴住内容高度，不随列表拉满
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	var title := Label.new()
+	title.text = "穿着预览"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color("c792ff"))
+	box.add_child(title)
+	var frame := Control.new()
+	frame.custom_minimum_size = Vector2(96, 128)
+	box.add_child(frame)
+	_preview_layers.clear()
+	for layer_path in ["res://assets/images/char_mofan_base.png", "", "", ""]:
+		var tr := TextureRect.new()
+		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		if layer_path != "":
+			tr.texture = load(layer_path)
+		frame.add_child(tr)
+		_preview_layers.append(tr)
+	panel.add_child(box)
+	return panel
+
+
+## 预览 = 当前穿着；焦点停在某件衣装上时该槽位即时试穿（override）。
+func _refresh_outfit_preview(override_slot: String = "", override_id: String = "") -> void:
+	var slots := ["pants", "top", "hat"]
+	for i in 3:
+		var id := override_id if slots[i] == override_slot else str(GameState.worn_clothes.get(slots[i], ""))
+		var path := "res://assets/images/clothes/%s.png" % id
+		_preview_layers[i + 1].texture = load(path) if id != "" and ResourceLoader.exists(path) else null
 
 
 func _refresh_wardrobe() -> void:
@@ -1091,6 +1148,7 @@ func _refresh_wardrobe() -> void:
 					"华丽度 +%d" % c.glamour, _glamour_color(c.glamour), 1,
 					_wear_from_wardrobe.bind(slot, clothing_id))
 			btn.disabled = worn
+			btn.focus_entered.connect(_refresh_outfit_preview.bind(slot, clothing_id))  # 选中即试穿
 			_wardrobe_box.add_child(btn)
 		if not any:
 			var empty := Label.new()
@@ -1104,8 +1162,10 @@ func _refresh_wardrobe() -> void:
 		_close_rest_menu()  # 同帧内重进商店：解锁后立刻重锁，无输入窗口
 		_open_shop(_wares)
 	)
+	back_btn.focus_entered.connect(_refresh_outfit_preview)  # 移出列表 → 预览回到当前穿着
 	_wardrobe_box.add_child(back_btn)
 	_focus_menu()
+	_refresh_outfit_preview()
 
 
 func _wear_from_wardrobe(slot: String, clothing_id: String) -> void:
