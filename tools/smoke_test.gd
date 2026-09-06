@@ -21,6 +21,14 @@ const BLOCKED := "TRWFBD"  # 树/岩石/水/屋顶/墙/门为阻挡格
 ## 按路径引用基类，避免 class_name 全局缓存过期时解析失败
 const MapBaseScript := preload("res://src/world/map_base.gd")
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+const PartySetup := preload("res://src/data/party_setup.gd")
+const GameData := preload("res://src/data/game_data.gd")
+const GameTypes := preload("res://src/data/game_types.gd")
+const ItemData := preload("res://src/data/item_data.gd")
+const SpellData := preload("res://src/data/spell_data.gd")
+
 
 func _check(cond: bool, label: String) -> void:
 	_total += 1
@@ -57,6 +65,7 @@ func _ready() -> void:
 	await _test_audio()
 	await _test_dialogue_autoclose()
 	_test_map_integrity()
+	_test_global_ref_audit()
 	if _failures.is_empty():
 		print("=== 全部通过（%d 项）===" % _total)
 		get_tree().quit(0)
@@ -459,3 +468,83 @@ func _test_map_integrity() -> void:
 		_check(elite_bad.is_empty(), "%s：精英格可通行 %s" % [name, elite_bad])
 	for map in maps.values():
 		map.free()
+
+
+## —— 全局类引用审计（踩坑 12/18 护栏）——
+## 凡在代码位使用全局类名 X 的文件，必须自带指向 X 脚本的 preload
+## （同名遮蔽或别名皆可）。新代码裸用全局类名会在这里当场红牌，
+## 而不是等另一台机器 pull 后才炸出上百个 parse error。
+## 匹配前先剥掉字符串字面量与注释——类名只认代码位；
+## 类自身的脚本文件豁免（声明与内部自引用不要求自 preload）。
+
+const AUDIT_MAP := {
+	"GameTypes": "res://src/data/game_types.gd",
+	"CharacterState": "res://src/data/character_state.gd",
+	"GameData": "res://src/data/game_data.gd",
+	"PartySetup": "res://src/data/party_setup.gd",
+	"ItemData": "res://src/data/item_data.gd",
+	"SpellData": "res://src/data/spell_data.gd",
+	"MonsterData": "res://src/data/monster_data.gd",
+	"EquipData": "res://src/data/equip_data.gd",
+	"ClothingData": "res://src/data/clothing_data.gd",
+	"MapBase": "res://src/world/map_base.gd",
+	"BattleActor": "res://src/battle/battle_actor.gd",
+	"StoryEvents": "res://src/story/story_events.gd",
+}
+const AUDIT_DIRS := ["res://autoload", "res://src", "res://tools"]
+
+
+func _test_global_ref_audit() -> void:
+	print("[全局类引用审计]")
+	var offenders: Array = _audit_dirs(AUDIT_DIRS)
+	_check(offenders.is_empty(), "全局类引用审计：代码位零裸引用（违规 %d 处）" % offenders.size())
+	for o in offenders:
+		printerr("    违规：", o)
+
+
+func _audit_dirs(dirs: Array) -> Array:
+	var offenders: Array = []
+	for d in dirs:
+		_audit_dir(str(d), offenders)
+	return offenders
+
+
+func _audit_dir(dir_path: String, offenders: Array) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while entry != "":
+		var full := dir_path + "/" + entry
+		if dir.current_is_dir():
+			if not entry.begins_with("."):
+				_audit_dir(full, offenders)
+		elif entry.ends_with(".gd"):
+			_audit_file(full, offenders)
+		entry = dir.get_next()
+	dir.list_dir_end()
+
+
+func _audit_file(path: String, offenders: Array) -> void:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var raw := f.get_as_text()
+	f.close()
+	# 先剥字符串字面量再剥注释：注释里的 # 可能出现在字符串里，顺序不能反。
+	var str_re := RegEx.new()
+	str_re.compile("\"(?:[^\"\\\\]|\\\\.)*\"")
+	var com_re := RegEx.new()
+	com_re.compile("#[^\\n]*")
+	var code := com_re.sub(str_re.sub(raw, "\"\"", true), "", true)
+	for cls in AUDIT_MAP:
+		var script_path := str(AUDIT_MAP[cls])
+		if path == script_path:
+			continue
+		var re := RegEx.new()
+		re.compile("\\b%s\\b" % cls)
+		if re.search(code) == null:
+			continue
+		if not raw.contains(script_path):
+			offenders.append("%s 裸用 %s（缺 preload %s）" % [path, cls, script_path])

@@ -5,8 +5,12 @@ extends SceneTree
 
 const SPELL_DIR := "res://resources/spells/"
 const MONSTER_DIR := "res://resources/monsters/"
-## 衣装脚本：按路径 preload，不依赖 class_name 全局缓存（docs/lessons.md 踩坑 12/18）。
-const ClothingDataScript := preload("res://src/data/clothing_data.gd")
+
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const ClothingData := preload("res://src/data/clothing_data.gd")
+const GameTypes := preload("res://src/data/game_types.gd")
+const SpellData := preload("res://src/data/spell_data.gd")
+const MonsterData := preload("res://src/data/monster_data.gd")
 
 
 func _initialize() -> void:
@@ -193,7 +197,7 @@ func _gen_clothes() -> void:
 
 
 func _clothing(cfg: Dictionary) -> void:
-	var c := ClothingDataScript.new()
+	var c := ClothingData.new()
 	for key in cfg:
 		c.set(key, cfg[key])
 	_save(c, CLOTHES_DIR + cfg["id"] + ".tres")

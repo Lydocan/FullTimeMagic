@@ -5,6 +5,9 @@ extends Node
 
 const OUT_DIR := "res://shots"
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const PartySetup := preload("res://src/data/party_setup.gd")
+
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))

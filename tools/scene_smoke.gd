@@ -9,6 +9,10 @@ const MAP_SCENES := [
 	"res://src/world/arena/duel_arena.tscn",
 ]
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+const PartySetup := preload("res://src/data/party_setup.gd")
+
 
 func _ready() -> void:
 	print("=== 场景冒烟 ===")
