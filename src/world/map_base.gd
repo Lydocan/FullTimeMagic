@@ -1097,11 +1097,13 @@ var _wardrobe_columns: HBoxContainer
 var _wardrobe_tabs: HBoxContainer
 var _preview_layers: Array[TextureRect] = []
 var _wardrobe_member := "mo_fan"
+var _wardrobe_from := "shop"  # 衣柜入口来路（"shop"/"bag"），返回键随之
 
 
-func _open_wardrobe() -> void:
+func _open_wardrobe(from: String = "shop") -> void:
 	if _menu != null or _event_running:
 		return
+	_wardrobe_from = from
 	player.input_enabled = false
 	var body: VBoxContainer = _menu_base("衣柜", 560)
 	_wardrobe_tabs = HBoxContainer.new()
@@ -1121,15 +1123,18 @@ func _open_wardrobe() -> void:
 	_wardrobe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_wardrobe_box)
 	_wardrobe_columns.add_child(scroll)
-	# 底部固定：返回杂货铺（不随列表滚动）
+	# 底部固定：返回来路（不随列表滚动）
 	var footer := HBoxContainer.new()
 	footer.add_theme_constant_override("separation", 10)
 	var back_btn := Button.new()
-	back_btn.text = "返回杂货铺"
+	back_btn.text = "返回杂货铺" if _wardrobe_from == "shop" else "返回背包"
 	back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	back_btn.pressed.connect(func() -> void:
-		_close_rest_menu()  # 同帧内重进商店：解锁后立刻重锁，无输入窗口
-		_open_shop(_wares)
+		_close_rest_menu()  # 同帧内重进来源菜单：解锁后立刻重锁，无输入窗口
+		if _wardrobe_from == "bag":
+			_open_bag()
+		else:
+			_open_shop(_wares)
 	)
 	back_btn.focus_entered.connect(_refresh_outfit_preview)  # 移出列表 → 预览回到当前穿着
 	footer.add_child(back_btn)
@@ -1336,7 +1341,8 @@ var _bag_box: VBoxContainer  # 滚动区内的背包列表（随刷新重建）
 var _pending_bag_item := ""
 
 
-## 背包装在滚动容器里，「关闭」固定底部——物品多时不溢出屏幕。
+## 背包装在滚动容器里，「衣柜/关闭」固定底部——物品多时不溢出屏幕。
+## 衣柜入口常驻背包：爱美之心不问场合（试玩期"只在杂货铺"的限制取消）。
 func _open_bag() -> void:
 	if _menu != null or _event_running:
 		return
@@ -1350,10 +1356,21 @@ func _open_bag() -> void:
 	_bag_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_bag_box)
 	body.add_child(scroll)
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 10)
+	var wardrobe_btn := Button.new()
+	wardrobe_btn.text = "衣柜 · 更换衣装"
+	wardrobe_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wardrobe_btn.pressed.connect(func() -> void:
+		_close_rest_menu()
+		_open_wardrobe("bag")
+	)
+	footer.add_child(wardrobe_btn)
 	var close_btn := Button.new()
 	close_btn.text = "关闭（Esc）"
 	close_btn.pressed.connect(_close_rest_menu)
-	body.add_child(close_btn)
+	footer.add_child(close_btn)
+	body.add_child(footer)
 	_refresh_bag()
 
 
@@ -1398,8 +1415,8 @@ func _refresh_bag() -> void:
 		var btn := _bag_item_button("%s（%s）" % [eq.equip_name, eq.slot_name()], eq.bonus_text(),
 				Color("c8b04a"), 1, _pick_equip_target.bind(equip_id))
 		_bag_box.add_child(btn)
-	# —— 衣装（展示；更换请到杂货铺衣柜）——
-	_bag_section(_bag_box, "衣装 · 更换请到杂货铺的衣柜")
+	# —— 衣装（点击直达衣柜更换）——
+	_bag_section(_bag_box, "衣装 · 点击前往衣柜更换")
 	for member_id in MEMBER_WARDROBE_SLOTS:
 		for clothing_id in GameState.owned_clothes.get(member_id, []):
 			var c: ClothingData = GameData.load_clothing(clothing_id)
@@ -1409,9 +1426,11 @@ func _refresh_bag() -> void:
 			var who := "" if member_id == "mo_fan" else "穆宁雪 · "
 			var btn := _bag_item_button(
 					who + c.clothing_name + ("（穿着中）" if worn else ""),
-					"%s · 华丽度 +%d" % [c.slot_name(), c.glamour],
+					"%s · 华丽度 +%d（点击前往衣柜）" % [c.slot_name(), c.glamour],
 					_glamour_color(c.glamour), 1,
-					func() -> void: _menu_result.text = "更换衣装请到杂货铺的衣柜。")
+					func() -> void:
+						_close_rest_menu()
+						_open_wardrobe("bag"))
 			_bag_box.add_child(btn)
 	_focus_menu()  # 「关闭」已在 _open_bag 固定于滚动区外
 
