@@ -14,9 +14,15 @@ const CAMPFIRE_SCRIPT := preload("res://src/world/campfire.gd")
 const NPC_SCRIPT := preload("res://src/world/npc.gd")
 const FOLLOWER_SCRIPT := preload("res://src/world/follower.gd")
 const MINIMAP_SCRIPT := preload("res://src/ui/minimap.gd")
-## 衣装脚本：按路径 preload，不依赖 class_name 全局缓存（docs/lessons.md 踩坑 12/18）。
-const ClothingDataScript := preload("res://src/data/clothing_data.gd")
 const BATTLE_SCENE := "res://src/battle/battle.tscn"
+
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+const GameData := preload("res://src/data/game_data.gd")
+const GameTypes := preload("res://src/data/game_types.gd")
+const ItemData := preload("res://src/data/item_data.gd")
+const EquipData := preload("res://src/data/equip_data.gd")
+const ClothingData := preload("res://src/data/clothing_data.gd")
 
 ## 成员 id → 地图跟随立绘（战斗立绘同源；新增成员时在此登记）。
 const MEMBER_TEXTURES := {
@@ -1020,7 +1026,7 @@ func _refresh_shop() -> void:
 				item.item_name, item.effect_text(), item.price, GameState.items.get(w["id"], 0)]
 			btn.pressed.connect(_buy_ware.bind(w))
 		elif w["kind"] == "clothing":
-			var c: ClothingDataScript = GameData.load_clothing(w["id"])
+			var c: ClothingData = GameData.load_clothing(w["id"])
 			var owned: bool = GameState.is_clothing_owned(w["id"])
 			btn.text = "%s（%s · 华丽度 +%d）—— %d 金币%s" % [
 				c.clothing_name, c.slot_name(), c.glamour, c.price, "（已拥有）" if owned else ""]
@@ -1076,7 +1082,7 @@ func _refresh_wardrobe() -> void:
 		_bag_section(_wardrobe_box, "「%s」槽位" % GameTypes.clothing_slot_name(slot))
 		var any := false
 		for clothing_id in GameState.owned_clothes:
-			var c: ClothingDataScript = GameData.load_clothing(clothing_id)
+			var c: ClothingData = GameData.load_clothing(clothing_id)
 			if c == null or c.slot != slot:
 				continue
 			any = true
@@ -1105,7 +1111,7 @@ func _refresh_wardrobe() -> void:
 
 func _wear_from_wardrobe(slot: String, clothing_id: String) -> void:
 	if GameState.wear_clothing(slot, clothing_id):
-		var c: ClothingDataScript = GameData.load_clothing(clothing_id)
+		var c: ClothingData = GameData.load_clothing(clothing_id)
 		_menu_result.text = "换上了%s（%s）。" % [c.clothing_name, c.slot_name()]
 	_refresh_wardrobe()
 
@@ -1131,7 +1137,7 @@ func _buy_ware(w: Dictionary) -> void:
 		data_name = item.item_name
 		price = item.price
 	elif w["kind"] == "clothing":
-		var cloth: ClothingDataScript = GameData.load_clothing(w["id"])
+		var cloth: ClothingData = GameData.load_clothing(w["id"])
 		data_name = cloth.clothing_name
 		price = cloth.price
 		if GameState.is_clothing_owned(w["id"]):
@@ -1152,7 +1158,7 @@ func _buy_ware(w: Dictionary) -> void:
 		GameState.add_equip(w["id"])
 	Audio.play_sfx("coin")
 	if w["kind"] == "clothing":
-		var cloth: ClothingDataScript = GameData.load_clothing(w["id"])
+		var cloth: ClothingData = GameData.load_clothing(w["id"])
 		_menu_result.text = "买下了 %s（华丽度 +%d）。当前称号：%s" % [
 			data_name, cloth.glamour, GameState.fashion_title()]
 	else:
@@ -1219,7 +1225,7 @@ func _refresh_bag() -> void:
 	# —— 衣装（展示；更换请到杂货铺衣柜）——
 	_bag_section(_bag_box, "衣装 · 更换请到杂货铺的衣柜")
 	for clothing_id in GameState.owned_clothes:
-		var c: ClothingDataScript = GameData.load_clothing(clothing_id)
+		var c: ClothingData = GameData.load_clothing(clothing_id)
 		if c == null:
 			continue
 		var worn: bool = GameState.worn_clothes.get(c.slot, "") == clothing_id

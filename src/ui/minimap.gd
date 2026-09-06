@@ -23,7 +23,7 @@ const TILE_COLORS := {
 	"U": Color("7a352c"),  # 校舍尖塔
 }
 
-var _map  # MapBase；按鸭子类型引用，避免与 map_base.gd 形成 preload 环
+var _map  # 地图基类；按鸭子类型引用，避免与 map_base.gd 形成 preload 环
 var _tiles_tex: ImageTexture
 
 

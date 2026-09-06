@@ -8,6 +8,9 @@ const FIRST_SCENE := "res://src/world/bo_city/bo_city.tscn"
 ## 存档路径用 var 而非 const：冒烟测试重定向到隔离文件，不碰真实存档。
 var save_path := "user://savegame.json"
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+
 
 func has_save() -> bool:
 	return FileAccess.file_exists(save_path)

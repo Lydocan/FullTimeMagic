@@ -4,6 +4,9 @@ extends Node2D
 ## 数值状态由 battle.gd 持有，本节点只负责显示与受击/突进等演出。
 ## 布局按精灵缩放后的实际尺寸自适应，单位放大后名牌不糊脸。
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const GameTypes := preload("res://src/data/game_types.gd")
+
 var _sprite: Sprite2D
 var _name_label: Label
 var _hp_bar: ProgressBar

@@ -6,6 +6,9 @@ class_name StoryEvents
 ## 战斗或传送后玩家回到触发点，事件再次进入时从旗标处续演。
 ## 文本与数值为原型占位，随剧情细化推进。
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const PartySetup := preload("res://src/data/party_setup.gd")
+
 const BO_CITY := "res://src/world/bo_city/bo_city.tscn"
 const MISTY_GROVE := "res://src/world/misty_grove/misty_grove.tscn"
 const DUEL_ARENA := "res://src/world/arena/duel_arena.tscn"

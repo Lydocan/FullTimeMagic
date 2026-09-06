@@ -10,6 +10,14 @@ enum Phase { INTRO, COMMAND, SPELL_SELECT, ITEM_SELECT, TARGET, RESOLVING, ENEMY
 ## 避免 .godot 缓存过期时改动不生效（项目既有坑，见 map_base 注释）。
 const BattleActorScript := preload("res://src/battle/battle_actor.gd")
 
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+const SpellData := preload("res://src/data/spell_data.gd")
+const MonsterData := preload("res://src/data/monster_data.gd")
+const GameData := preload("res://src/data/game_data.gd")
+const GameTypes := preload("res://src/data/game_types.gd")
+const ItemData := preload("res://src/data/item_data.gd")
+
 const WORLD_SCENE := "res://src/world/test_wilds/test_wilds.tscn"
 const BG_TEXTURE := "res://assets/images/battle_bg_proto.png"
 
@@ -26,7 +34,7 @@ const COL_HEAL := Color("7dde8a")
 ## 每回合行动者积攒的星辉上限（出招时消耗，1 点 = 法术 +1 段）。
 const MAX_STARS := 3
 
-## 战斗立绘：成员 id → 立绘贴图（妖魔立绘走 MonsterData.portrait_path）。
+## 战斗立绘：成员 id → 立绘贴图（妖魔立绘走妖魔数据的 portrait_path）。
 ## 出招时对应一侧的立绘滑入切换（左我方 / 右敌方）。
 const PARTY_PORTRAITS := {
 	"mo_fan": "res://assets/images/portrait_mo_fan.png",

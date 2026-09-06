@@ -6,7 +6,7 @@ extends Node
 
 ## —— 探索 ↔ 战斗 ——
 
-## 遇敌触发（enemy_ids 为 GameData.MONSTERS 的 id 列表）。
+## 遇敌触发（enemy_ids 为数据注册表 MONSTERS 的 id 列表）。
 signal encounter_started(enemy_ids: Array)
 
 ## 战斗结束（victory 是否胜利；fled 表示逃跑）。

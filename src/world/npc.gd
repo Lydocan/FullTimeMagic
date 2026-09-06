@@ -3,7 +3,7 @@ extends Area2D
 ##
 ## 头顶显示名字与浮动「!」标记；玩家进入交互距离时描金光边亮起（即是
 ## "可以按 E"的提示，不再额外显示 E 字样）。剧情完成后 hide_flag 点亮，
-## 地图会让人物退场（见 MapBase._spawn_npc）。
+## 地图会让人物退场（见地图基类的 _spawn_npc）。
 ## 装饰 NPC（event 无效）不显示标记、不高亮、不响应按 E。
 
 const OUTLINE_SHADER := preload("res://shaders/interact_outline.gdshader")

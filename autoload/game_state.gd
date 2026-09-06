@@ -6,8 +6,12 @@ extends Node
 ## 精魄突破所需数量（原型期统一 1 个）。
 const ESSENCE_COST := 1
 
-## 衣装脚本：按路径 preload，不依赖 class_name 全局缓存（docs/lessons.md 踩坑 12/18）。
-const ClothingDataScript := preload("res://src/data/clothing_data.gd")
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const CharacterState := preload("res://src/data/character_state.gd")
+const PartySetup := preload("res://src/data/party_setup.gd")
+const GameData := preload("res://src/data/game_data.gd")
+const GameTypes := preload("res://src/data/game_types.gd")
+const ClothingData := preload("res://src/data/clothing_data.gd")
 
 var party: Array[CharacterState] = []
 var gold: int = 30
@@ -17,7 +21,7 @@ var essences: Dictionary = {}
 var items: Dictionary = {}
 ## 未装备的装备：{equip_id: count}
 var equip_bag: Dictionary = {}
-## 衣柜：拥有的衣装 id（纯外观 + 华丽度，见 ClothingData）。
+## 衣柜：拥有的衣装 id（纯外观 + 华丽度，见衣装数据定义）。
 var owned_clothes: Array = []
 ## 当前穿着：{"hat"/"top"/"pants": clothing_id}。
 var worn_clothes: Dictionary = {}
@@ -35,7 +39,7 @@ var battle_return_scene: String = ""
 var next_spawn := Vector2i(-1, -1)
 var return_position := Vector2.ZERO
 var has_return_position := false
-## 上一张地图的野性状态（跨区过场动画的方向判定，见 MapBase._maybe_zone_transition）。
+## 上一张地图的野性状态（跨区过场动画的方向判定，见地图基类的 _maybe_zone_transition）。
 var prev_map_wild := false
 var has_prev_wildness := false
 
@@ -94,7 +98,7 @@ func add_clothing(clothing_id: String) -> bool:
 func wear_clothing(slot: String, clothing_id: String) -> bool:
 	if not is_clothing_owned(clothing_id):
 		return false
-	var c: ClothingDataScript = GameData.load_clothing(clothing_id)
+	var c: ClothingData = GameData.load_clothing(clothing_id)
 	if c == null or c.slot != slot:
 		return false
 	worn_clothes[slot] = clothing_id
@@ -105,13 +109,13 @@ func wear_clothing(slot: String, clothing_id: String) -> bool:
 func glamour_total() -> int:
 	var total := 0
 	for clothing_id in owned_clothes:
-		var c: ClothingDataScript = GameData.load_clothing(clothing_id)
+		var c: ClothingData = GameData.load_clothing(clothing_id)
 		if c != null:
 			total += c.glamour
 	return total
 
 
-## 当前时尚称号（华丽度阶梯，见 GameTypes.FASHION_TITLES）。
+## 当前时尚称号（华丽度阶梯，见全局类型表的 FASHION_TITLES）。
 func fashion_title() -> String:
 	return GameTypes.fashion_title(glamour_total())
 
