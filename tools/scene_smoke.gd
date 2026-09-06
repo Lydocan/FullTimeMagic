@@ -116,6 +116,17 @@ func _test_wardrobe() -> bool:
 	else:
 		printerr("  FAIL  穆宁雪换装异常（华丽度 %d）" % GameState.glamour_total("mu_ningxue"))
 		ok = false
+	# 脱下连衣裙 → 内衣打底，上下装搭配生效
+	GameState.add_clothing("mu_ningxue", "cloth_xue_camisole")
+	GameState.add_clothing("mu_ningxue", "cloth_xue_skirt")
+	if GameState.unwear_clothing("mu_ningxue", "dress") \
+			and GameState.wear_clothing("mu_ningxue", "top", "cloth_xue_camisole") \
+			and GameState.wear_clothing("mu_ningxue", "pants", "cloth_xue_skirt") \
+			and str(GameState.worn_clothes["mu_ningxue"].get("dress", "")) == "":
+		print("  PASS  脱下连衣裙（内衣打底，吊带 + 短裙生效）")
+	else:
+		printerr("  FAIL  脱连衣裙异常")
+		ok = false
 	if not GameState.add_clothing("mo_fan", "cloth_xue_maid"):
 		print("  PASS  衣装归属校验（莫凡买不到穆宁雪的女仆装）")
 	else:
@@ -230,6 +241,13 @@ func _test_outfit_visuals() -> bool:
 			print("  PASS  跟随者分层换装（穆宁雪银白常服 → 哥特裙）")
 		else:
 			printerr("  FAIL  跟随者换装层未更新")
+			ok = false
+		# 脱下连衣裙 → 跟随者裙层隐藏（内衣打底露出）
+		GameState.unwear_clothing("mu_ningxue", "dress")
+		if dress_sp.texture == null and not dress_sp.visible:
+			print("  PASS  跟随者脱裙（连衣裙层隐藏，露出上下装）")
+		else:
+			printerr("  FAIL  脱裙后裙层未隐藏")
 			ok = false
 	scene2._close_rest_menu()
 	scene2.free()

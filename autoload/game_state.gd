@@ -126,6 +126,16 @@ func wear_clothing(member_id: String, slot: String, clothing_id: String) -> bool
 	return true
 
 
+## 脱下某槽位（留空 = 露出基础身体的内衣打底，如脱连衣裙换回上下装）。
+## 返回是否实际脱下。
+func unwear_clothing(member_id: String, slot: String) -> bool:
+	if not worn_clothes.get(member_id, {}).has(slot):
+		return false
+	worn_clothes[member_id].erase(slot)
+	GameEvents.clothes_changed.emit()
+	return true
+
+
 ## 华丽度 = 该角色拥有所有衣装的华丽度总和（与是否穿着无关）。
 func glamour_total(member_id: String) -> int:
 	var total := 0

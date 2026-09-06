@@ -1249,13 +1249,21 @@ func _refresh_wardrobe() -> void:
 	_wardrobe_box.add_child(banner)
 	for slot in MEMBER_WARDROBE_SLOTS.get(_wardrobe_member, []):
 		_bag_section(_wardrobe_box, "「%s」槽位" % GameTypes.clothing_slot_name(slot))
+		var worn_id: String = str(GameState.worn_clothes.get(_wardrobe_member, {}).get(slot, ""))
+		# 「不穿」选项：脱下露出基础身体的内衣打底（如脱连衣裙换回上下装搭配）
+		var bare_btn := _bag_item_button(
+				"不穿 · 内衣打底", "该槽位留空", Color("6f6f78"), 0,
+				_unwear_from_wardrobe.bind(_wardrobe_member, slot))
+		bare_btn.disabled = worn_id == ""
+		bare_btn.focus_entered.connect(_refresh_outfit_preview.bind(slot, ""))  # 预览留空效果
+		_wardrobe_box.add_child(bare_btn)
 		var any := false
 		for clothing_id in GameState.owned_clothes.get(_wardrobe_member, []):
 			var c: ClothingData = GameData.load_clothing(clothing_id)
 			if c == null or c.slot != slot:
 				continue
 			any = true
-			var worn: bool = str(GameState.worn_clothes.get(_wardrobe_member, {}).get(slot, "")) == clothing_id
+			var worn: bool = worn_id == clothing_id
 			var btn := _bag_item_button(
 					c.clothing_name + ("（穿着中）" if worn else ""),
 					"华丽度 +%d" % c.glamour, _glamour_color(c.glamour), 1,
@@ -1278,6 +1286,13 @@ func _wear_from_wardrobe(member_id: String, slot: String, clothing_id: String) -
 		var c: ClothingData = GameData.load_clothing(clothing_id)
 		_menu_result.text = "%s换上了%s（%s）。" % [
 			MEMBER_NAMES.get(member_id, member_id), c.clothing_name, c.slot_name()]
+	_refresh_wardrobe()
+
+
+func _unwear_from_wardrobe(member_id: String, slot: String) -> void:
+	if GameState.unwear_clothing(member_id, slot):
+		_menu_result.text = "%s脱下了%s，换回内衣打底。" % [
+			MEMBER_NAMES.get(member_id, member_id), GameTypes.clothing_slot_name(slot)]
 	_refresh_wardrobe()
 
 
