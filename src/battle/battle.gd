@@ -9,6 +9,7 @@ enum Phase { INTRO, COMMAND, SPELL_SELECT, ITEM_SELECT, TARGET, RESOLVING, ENEMY
 ## 按路径引用单位视图脚本：不依赖 class_name 全局缓存，
 ## 避免 .godot 缓存过期时改动不生效（项目既有坑，见 map_base 注释）。
 const BattleActorScript := preload("res://src/battle/battle_actor.gd")
+const Outfit := preload("res://src/world/outfit_layers.gd")
 
 # 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
 const CharacterState := preload("res://src/data/character_state.gd")
@@ -170,11 +171,16 @@ func _spawn_enemies() -> void:
 
 
 func _spawn_party_actors() -> void:
-	var textures := ["res://assets/images/char_mofan.png", "res://assets/images/char_muningxue.png"]
 	for i in _party.size():
+		var m: CharacterState = _party[i]
 		var actor := BattleActorScript.new()
-		var tex_path: String = textures[i] if i < textures.size() else textures[0]
-		actor.setup(load(tex_path), _party[i].char_name, 2.2)
+		# 衣柜成员：基础身体 + 分层衣装（与地图穿着一致）；否则单贴图
+		var tex_path: String = "res://assets/images/char_mofan.png"
+		if Outfit.has_wardrobe(m.id):
+			tex_path = Outfit.BASE_BY_MEMBER[m.id]
+			actor.member_id = m.id
+			actor.wardrobe_slots = Outfit.SLOTS_BY_MEMBER[m.id]
+		actor.setup(load(tex_path), m.char_name, 2.2, actor.member_id, actor.wardrobe_slots)
 		actor.position = Vector2(500 + i * 260.0, 480)
 		actor.set_shield(0, 0)
 		add_child(actor)
@@ -190,10 +196,54 @@ func _build_ui() -> void:
 
 ## —— 战斗立绘：出招者的大幅形象贴在画面两侧，随行动切换 ——
 
-## 成员立绘：优先高清 art/<id>/portrait.png（docs/art_spec.md），回落像素占位。
-func _member_portrait(member_id: String) -> String:
-	var hires := "res://assets/images/art/%s/portrait.png" % member_id
-	return hires if ResourceLoader.exists(hires) else PARTY_PORTRAITS.get(member_id, "")
+## 成员立绘纹理：有高清分层 base（art/<id>/base.png）→ 按当前穿着合成立绘
+## （docs/art_spec.md）；否则回落像素占位。战斗内缓存（战斗中不会换装）。
+func _member_portrait(member_id: String) -> Texture2D:
+	if _portrait_cache.has(member_id):
+		return _portrait_cache[member_id]
+	var tex: Texture2D = null
+	var art_base := "res://assets/images/art/%s/base.png" % member_id
+	if ResourceLoader.exists(art_base):
+		tex = _composite_portrait(member_id)
+	var px: String = PARTY_PORTRAITS.get(member_id, "")
+	if tex == null and px != "" and ResourceLoader.exists(px):
+		tex = load(px)
+	_portrait_cache[member_id] = tex
+	return tex
+
+
+## 高清分层合成：base + 当前穿着各槽位（渲染顺序内→外，连衣裙覆盖上下装）。
+func _composite_portrait(member_id: String) -> Texture2D:
+	var base_img: Image = _art_image("res://assets/images/art/%s/base.png" % member_id)
+	if base_img == null:
+		return null
+	var worn: Dictionary = GameState.worn_clothes.get(member_id, {})
+	var dress_on: bool = str(worn.get("dress", "")) != ""
+	for slot in Outfit.SLOTS_BY_MEMBER.get(member_id, []):
+		if dress_on and (slot == "top" or slot == "pants"):
+			continue
+		var id: String = str(worn.get(slot, ""))
+		if id == "":
+			continue
+		var layer_img: Image = _art_image("res://assets/images/art/%s/%s.png" % [member_id, id])
+		if layer_img != null:
+			base_img.blend_rect(layer_img, Rect2i(Vector2i.ZERO, layer_img.get_size()), Vector2i.ZERO)
+	return ImageTexture.create_from_image(base_img)
+
+
+func _art_image(path: String) -> Image:
+	if not ResourceLoader.exists(path):
+		return null
+	var tex: Texture2D = load(path)
+	if tex == null:
+		return null
+	var img: Image = tex.get_image()
+	if img != null:
+		img.convert(Image.FORMAT_RGBA8)
+	return img
+
+
+var _portrait_cache: Dictionary = {}
 
 
 func _build_portraits() -> void:
@@ -213,13 +263,12 @@ func _make_portrait(pos: Vector2) -> TextureRect:
 	return rect
 
 
-## 切换一侧立绘：换贴图 + 从屏边滑入；path 为空则隐去（无立绘的单位）。
-func _show_portrait(rect: TextureRect, path: String, from_left: bool) -> void:
-	if not ResourceLoader.exists(path):
+## 切换一侧立绘：换贴图 + 从屏边滑入；tex 为 null 则隐去（无立绘的单位）。
+func _show_portrait(rect: TextureRect, tex: Texture2D, from_left: bool) -> void:
+	if tex == null:
 		var tw := create_tween()
 		tw.tween_property(rect, "modulate:a", 0.0, 0.2)
 		return
-	var tex: Texture2D = load(path)
 	var same := rect.texture == tex and rect.modulate.a > 0.9
 	rect.texture = tex
 	var home_x: float = rect.position.x
@@ -1346,7 +1395,9 @@ func _enemy_act(e: Dictionary) -> void:
 	_phase = Phase.ENEMY
 	await _pause(0.3)
 	var d: MonsterData = e["data"]
-	_show_portrait(_portrait_right, d.portrait_path, false)
+	var mtex: Texture2D = load(d.portrait_path) \
+			if d.portrait_path != "" and ResourceLoader.exists(d.portrait_path) else null
+	_show_portrait(_portrait_right, mtex, false)
 	# 技能判定：普攻兜底，技能表逐技掷骰先中先用（小怪一技，Boss 多技）
 	var use_skill := false
 	var skill: Dictionary = {"name": "撞击", "power": d.attack_power, "chance": 1.0,

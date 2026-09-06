@@ -4,7 +4,9 @@ extends CharacterBody2D
 ## 随 worn_clothes 换图，行走跳动与朝向翻转同 base 一并同步。
 
 const SPEED := 150.0
-const CLOTHES_DIR := "res://assets/images/clothes/"
+
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const Outfit := preload("res://src/world/outfit_layers.gd")
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var _pants_sprite: Sprite2D = $PantsSprite
@@ -34,9 +36,7 @@ func _refresh_outfit() -> void:
 
 
 func _set_outfit_layer(layer: Sprite2D, slot: String) -> void:
-	var id: String = GameState.worn_clothes.get("mo_fan", {}).get(slot, "")
-	var path := "%s/%s.png" % [CLOTHES_DIR, id]
-	layer.texture = load(path) if id != "" and ResourceLoader.exists(path) else null
+	layer.texture = Outfit.pixel_texture(GameState.worn_clothes.get("mo_fan", {}), slot)
 	layer.visible = layer.texture != null
 
 

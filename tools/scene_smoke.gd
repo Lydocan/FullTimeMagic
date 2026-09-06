@@ -13,6 +13,7 @@ const MAP_SCENES := [
 const CharacterState := preload("res://src/data/character_state.gd")
 const PartySetup := preload("res://src/data/party_setup.gd")
 const MapBaseScript := preload("res://src/world/map_base.gd")
+const Outfit := preload("res://src/world/outfit_layers.gd")
 
 
 func _ready() -> void:
@@ -204,7 +205,7 @@ func _test_outfit_visuals() -> bool:
 		return false
 	back_btn.grab_focus()
 	await get_tree().process_frame
-	var hat_layer_idx: int = 1 + int(MapBaseScript.MEMBER_WARDROBE_SLOTS["mo_fan"].find("hat"))  # [0]=base，其后按槽位序
+	var hat_layer_idx: int = 1 + int(Outfit.SLOTS_BY_MEMBER["mo_fan"].find("hat"))  # [0]=base，其后按槽位序
 	var before: Texture2D = scene2._preview_layers[hat_layer_idx].texture
 	knight_btn.grab_focus()
 	await get_tree().process_frame

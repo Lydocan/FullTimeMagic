@@ -156,7 +156,7 @@ func _ready() -> void:
 	print("[死亡不复活] 高亮重置后透明度 %.1f %s" % [victim["actor"].modulate.a,
 			"PASS" if corpse_hidden else "FAIL"])
 	# 我方立绘滑入
-	battle._show_portrait(battle._portrait_left, "res://assets/images/portrait_mo_fan.png", true)
+	battle._show_portrait(battle._portrait_left, load("res://assets/images/portrait_mo_fan.png"), true)
 	await _wait(0.4)
 	await _snap("08_portrait_and_dead_hidden.png")
 	battle.free()

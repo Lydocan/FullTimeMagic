@@ -140,6 +140,9 @@ func _test_battle_simulation() -> void:
 	var result: Dictionary = await battle.run_simulation()
 	print("  模拟结果：", result)
 	_check(result["victory"], "队伍击败双鼠潮")
+	var mf_actor: Node = battle._party_actors[0]
+	_check(mf_actor.layer_sprites.size() == 3 and mf_actor.layer_sprites["pants"].texture != null,
+			"战斗小人分层衣装（莫凡三槽随衣柜）")
 	_check(GameState.gold == 30 + 12, "金币结算 30+12")
 	var mofan := GameState.party[0]
 	var xue := GameState.party[1]

@@ -22,24 +22,12 @@ const GameTypes := preload("res://src/data/game_types.gd")
 const ItemData := preload("res://src/data/item_data.gd")
 const EquipData := preload("res://src/data/equip_data.gd")
 const ClothingData := preload("res://src/data/clothing_data.gd")
+const Outfit := preload("res://src/world/outfit_layers.gd")
 
 ## 成员 id → 地图跟随立绘（战斗立绘同源；新增成员时在此登记）。
 const MEMBER_TEXTURES := {
 	"mo_fan": "res://assets/images/char_mofan.png",
 	"mu_ningxue": "res://assets/images/char_muningxue.png",
-}
-
-## 成员换装槽位（渲染顺序 = 从内到外；穿连衣裙时上/下装层隐藏）。
-## 无配置的成员不参与换装（跟随者保持单贴图）。
-const MEMBER_WARDROBE_SLOTS := {
-	"mo_fan": ["hat", "top", "pants"],
-	"mu_ningxue": ["hosiery", "pants", "top", "dress", "hat"],
-}
-
-## 成员换装的基础身体贴图（分层渲染最底层，无衣）。
-const MEMBER_OUTFIT_BASE := {
-	"mo_fan": "res://assets/images/char_mofan_base.png",
-	"mu_ningxue": "res://assets/images/char_muningxue_base.png",
 }
 
 ## 成员显示名（衣柜分页 / 背包衣装归属标注）。
@@ -48,14 +36,10 @@ const MEMBER_NAMES := {
 	"mu_ningxue": "穆宁雪",
 }
 
-## 高清立绘目录（分层纸娃娃，规格见 docs/art_spec.md）。
-## 角色 base.png 存在即切高清轨；缺失自动回落像素占位。
-const ART_DIR := "res://assets/images/art/"
-
 
 ## 高清轨判定：该角色存在 art/<id>/base.png 即用高清纸娃娃。
 func _art_track(member_id: String) -> bool:
-	return ResourceLoader.exists(ART_DIR + member_id + "/base.png")
+	return ResourceLoader.exists(Outfit.ART_DIR + member_id + "/base.png")
 
 # tiles_proto.png 的 11 格横向图块。
 const T_GRASS := Vector2i(0, 0)
@@ -455,10 +439,10 @@ func _sync_followers() -> void:
 		var m: CharacterState = GameState.party[followers.size() + 1]
 		var follower: Node2D = FOLLOWER_SCRIPT.new()
 		follower.texture = load(MEMBER_TEXTURES.get(m.id, MEMBER_TEXTURES["mo_fan"]))
-		if MEMBER_WARDROBE_SLOTS.has(m.id):  # 衣柜成员：基础身体 + 分层换装
+		if Outfit.SLOTS_BY_MEMBER.has(m.id):  # 衣柜成员：基础身体 + 分层换装
 			follower.member_id = m.id
-			follower.wardrobe_slots = MEMBER_WARDROBE_SLOTS[m.id]
-			follower.texture = load(MEMBER_OUTFIT_BASE[m.id])
+			follower.wardrobe_slots = Outfit.SLOTS_BY_MEMBER[m.id]
+			follower.texture = load(Outfit.BASE_BY_MEMBER[m.id])
 		follower.target = prev
 		follower.position = prev.position
 		add_child(follower)
@@ -1160,7 +1144,7 @@ func _refresh_wardrobe_tabs() -> void:
 	for m in GameState.party:
 		if m.id == "mu_ningxue":
 			in_party = true
-	for member_id in MEMBER_WARDROBE_SLOTS:
+	for member_id in Outfit.SLOTS_BY_MEMBER:
 		if member_id == "mu_ningxue" and not in_party:
 			continue
 		var tab := Button.new()
@@ -1216,10 +1200,10 @@ func _build_outfit_preview(member_id: String) -> Control:
 	frame.custom_minimum_size = Vector2(216, 324) if hires else Vector2(96, 128)
 	box.add_child(frame)
 	_preview_layers.clear()
-	var base_path: String = ART_DIR + member_id + "/base.png" if hires \
-			else MEMBER_OUTFIT_BASE.get(member_id, "res://assets/images/char_mofan_base.png")
+	var base_path: String = Outfit.ART_DIR +member_id + "/base.png" if hires \
+			else Outfit.BASE_BY_MEMBER.get(member_id, "res://assets/images/char_mofan_base.png")
 	var layer_paths: Array = [base_path]
-	for slot in MEMBER_WARDROBE_SLOTS.get(member_id, []):
+	for slot in Outfit.SLOTS_BY_MEMBER.get(member_id, []):
 		layer_paths.append("")
 	var tex_filter := CanvasItem.TEXTURE_FILTER_LINEAR if hires else CanvasItem.TEXTURE_FILTER_NEAREST
 	for layer_path in layer_paths:
@@ -1239,7 +1223,7 @@ func _build_outfit_preview(member_id: String) -> Control:
 ## 预览 = 当前穿着；焦点停在某件衣装上时该槽位即时试穿（override）。
 ## 穿连衣裙时上/下装层隐藏（连衣裙覆盖其外观），腿袜在裙摆下仍露出。
 func _refresh_outfit_preview(override_slot: String = "", override_id: String = "") -> void:
-	var slots: Array = MEMBER_WARDROBE_SLOTS.get(_wardrobe_member, [])
+	var slots: Array = Outfit.SLOTS_BY_MEMBER.get(_wardrobe_member, [])
 	var worn: Dictionary = GameState.worn_clothes.get(_wardrobe_member, {})
 	var dress_on := (override_slot == "dress" and override_id != "") \
 			or str(worn.get("dress", "")) != ""
@@ -1248,7 +1232,7 @@ func _refresh_outfit_preview(override_slot: String = "", override_id: String = "
 		var slot: String = slots[i]
 		var tr: TextureRect = _preview_layers[i + 1]
 		var id := override_id if slot == override_slot else str(worn.get(slot, ""))
-		var path: String = (ART_DIR + _wardrobe_member + "/" + id + ".png") if hires \
+		var path: String = (Outfit.ART_DIR +_wardrobe_member + "/" + id + ".png") if hires \
 				else ("res://assets/images/clothes/%s.png" % id)
 		tr.texture = load(path) if id != "" and ResourceLoader.exists(path) else null
 		tr.visible = tr.texture != null and not (dress_on and (slot == "top" or slot == "pants"))
@@ -1265,7 +1249,7 @@ func _refresh_wardrobe() -> void:
 	banner.add_theme_color_override("font_color", Color("ffd166"))
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_wardrobe_box.add_child(banner)
-	for slot in MEMBER_WARDROBE_SLOTS.get(_wardrobe_member, []):
+	for slot in Outfit.SLOTS_BY_MEMBER.get(_wardrobe_member, []):
 		_bag_section(_wardrobe_box, "「%s」槽位" % GameTypes.clothing_slot_name(slot))
 		var worn_id: String = str(GameState.worn_clothes.get(_wardrobe_member, {}).get(slot, ""))
 		# 「不穿」选项：脱下露出基础身体的内衣打底（如脱连衣裙换回上下装搭配）
@@ -1450,7 +1434,7 @@ func _refresh_bag() -> void:
 		_bag_box.add_child(btn)
 	# —— 衣装（点击直达衣柜更换）——
 	_bag_section(_bag_box, "衣装 · 点击前往衣柜更换")
-	for member_id in MEMBER_WARDROBE_SLOTS:
+	for member_id in Outfit.SLOTS_BY_MEMBER:
 		for clothing_id in GameState.owned_clothes.get(member_id, []):
 			var c: ClothingData = GameData.load_clothing(clothing_id)
 			if c == null:

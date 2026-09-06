@@ -11,7 +11,9 @@ const STEP := 6.0             # 目标每移动该距离记录一个轨迹点
 const GAP := 26.0             # 与目标保持的路径距离
 const SNAP_DISTANCE := 300.0  # 单帧位移超过此值视为瞬移
 const MAX_TRAIL := 64         # 轨迹点上限（足够绕 map 尺寸的弯）
-const CLOTHES_DIR := "res://assets/images/clothes/"
+
+# 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
+const Outfit := preload("res://src/world/outfit_layers.gd")
 
 var texture: Texture2D
 var target: Node2D
@@ -43,19 +45,9 @@ func _ready() -> void:
 		_refresh_outfit()
 
 
-## 分层换装：与玩家同规则——穿连衣裙时上/下装层隐藏，腿袜在裙摆下露出。
+## 分层换装：与玩家同规则（委托 Outfit 统一处理）。
 func _refresh_outfit() -> void:
-	var worn: Dictionary = GameState.worn_clothes.get(member_id, {})
-	for slot in wardrobe_slots:
-		var s: Sprite2D = layer_sprites[slot]
-		var id: String = str(worn.get(slot, ""))
-		var path := "%s/%s.png" % [CLOTHES_DIR, id]
-		s.texture = load(path) if id != "" and ResourceLoader.exists(path) else null
-		s.visible = s.texture != null and not (dress_on(worn) and (slot == "top" or slot == "pants"))
-
-
-func dress_on(worn: Dictionary) -> bool:
-	return str(worn.get("dress", "")) != ""
+	Outfit.refresh_layers(GameState.worn_clothes.get(member_id, {}), layer_sprites)
 
 
 ## 入场预置：站在目标侧后方 offset 处，并伪造半段反向轨迹，

@@ -5,8 +5,12 @@ extends Node2D
 
 # 跨模块依赖一律按路径 preload，不依赖 class_name 全局缓存（踩坑 12/18）。
 const GameTypes := preload("res://src/data/game_types.gd")
+const Outfit := preload("res://src/world/outfit_layers.gd")
 
 var _sprite: Sprite2D
+var member_id := ""              # 非空且槽位非空 = 分层换装（队伍成员专属）
+var wardrobe_slots: Array = []
+var layer_sprites: Dictionary = {}  # slot → Sprite2D（挂 _sprite 之下，随受击染色/呼吸同步）
 var _name_label: Label
 var _hp_bar: ProgressBar
 var _shield_label: Label
@@ -63,13 +67,23 @@ func _make_label(font_size: int) -> Label:
 	return l
 
 
-func setup(texture: Texture2D, actor_name: String, sprite_scale := 1.0) -> void:
+func setup(texture: Texture2D, actor_name: String, sprite_scale := 1.0,
+		member_id := "", wardrobe_slots: Array = []) -> void:
 	_sprite.texture = texture
 	_sprite.scale = Vector2(sprite_scale, sprite_scale)
 	_sprite_base_scale = _sprite.scale
 	_half_h = texture.get_height() * sprite_scale * 0.5
 	_name_label.text = actor_name
 	_bob_phase = randf() * TAU
+	# 队伍成员分层衣装：层挂 _sprite 之下——继承缩放、呼吸位移与受击染色
+	if member_id != "" and not wardrobe_slots.is_empty():
+		self.member_id = member_id
+		self.wardrobe_slots = wardrobe_slots
+		for slot in wardrobe_slots:
+			var s := Sprite2D.new()
+			_sprite.add_child(s)
+			layer_sprites[slot] = s
+		Outfit.refresh_layers(GameState.worn_clothes.get(member_id, {}), layer_sprites)
 	# 名牌组贴着精灵下缘排布：名字 / 血条 / 魔盾 / 弱点，行距拉足防粘连
 	# 注意：尺寸在 _ready 统一设置——树外无主题上下文时样式盒最小高度
 	# 会虚高（血条被顶到 27px），进树后才回落真实值，setup 里赋不准
