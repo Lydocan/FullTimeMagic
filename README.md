@@ -19,9 +19,11 @@ cd FullTimeMagic
 
 命令行验证（无头模式，不依赖图形界面）：
 
+> **双机同步必读**：每次 `git pull` / 全新 `git clone` 之后，先跑一次 `--import`（或用编辑器打开一次项目）再运行游戏——导入会重建本机 `.godot` 缓存与资产导入产物（贴图/音频必需）。项目已零 `class_name`：脚本层对类缓存免疫，漏跑 import 不会报脚本错，但资产会缺失。
+
 ```bash
-godot_console --headless --path . --import                        # 导入资源
-godot_console --headless --path . res://tools/smoke_test.tscn     # M2 冒烟测试 108 项（退出码 0 = 通过）
+godot_console --headless --path . --import                        # 导入资源（pull/克隆后必跑）
+godot_console --headless --path . res://tools/smoke_test.tscn     # M2 冒烟测试 111 项（退出码 0 = 通过，末项审计全局类引用）
 godot_console --headless --path . res://tools/scene_smoke.tscn    # 地图场景冒烟（退出码 0 = 通过）
 ```
 

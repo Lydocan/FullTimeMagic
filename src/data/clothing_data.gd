@@ -1,4 +1,3 @@
-class_name ClothingData
 extends Resource
 ## 衣装数据（.tres 数据驱动，实例见 resources/clothes/）。
 ## 纯外观：不加属性，只贡献华丽度（拥有即计入，与是否穿着无关）。

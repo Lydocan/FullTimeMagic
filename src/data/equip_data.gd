@@ -1,4 +1,3 @@
-class_name EquipData
 extends Resource
 ## 装备数据（.tres 数据驱动，实例见 resources/equips/）。
 ##

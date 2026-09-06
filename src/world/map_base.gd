@@ -1,4 +1,3 @@
-class_name MapBase
 extends Node2D
 ## 通用地图基类：瓦片构建、玩家、暗雷遇敌、传送门、剧情触发器、精英、篝火、HUD。
 ##

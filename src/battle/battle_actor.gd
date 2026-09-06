@@ -1,4 +1,3 @@
-class_name BattleActor
 extends Node2D
 ## 战斗单位视图：精灵、接地影子、名牌、血条、魔盾、弱点标记、目标箭头。
 ## 数值状态由 battle.gd 持有，本节点只负责显示与受击/突进等演出。

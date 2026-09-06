@@ -1,4 +1,3 @@
-class_name PartySetup
 ## 初始队伍配置。
 ##
 ## 原型期硬编码；正式版迁移为 CharacterData .tres + 剧情加入事件。
@@ -9,7 +8,8 @@ const GameData := preload("res://src/data/game_data.gd")
 const GameTypes := preload("res://src/data/game_types.gd")
 
 static func mo_fan() -> CharacterState:
-	var c := CharacterState.create({
+	var c := CharacterState.new()
+	c.build_from({
 		"id": "mo_fan",
 		"name": "莫凡",
 		"elements": [GameTypes.Element.LIGHTNING, GameTypes.Element.FIRE],
@@ -27,7 +27,8 @@ static func mo_fan() -> CharacterState:
 
 
 static func mu_ningxue() -> CharacterState:
-	var c := CharacterState.create({
+	var c := CharacterState.new()
+	c.build_from({
 		"id": "mu_ningxue",
 		"name": "穆宁雪",
 		"elements": [GameTypes.Element.ICE],

@@ -1,4 +1,3 @@
-class_name MonsterData
 extends Resource
 ## 妖魔数据（.tres 数据驱动，实例见 resources/monsters/）。
 

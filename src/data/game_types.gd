@@ -1,4 +1,3 @@
-class_name GameTypes
 ## 全局类型与常量：元素、位阶、显示名与颜色。
 ##
 ## 位阶体系见 docs/world.md：阶 × 星级，每个元素系独立修炼。

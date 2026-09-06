@@ -1,4 +1,3 @@
-class_name CharacterState
 extends RefCounted
 ## 角色运行时状态：属性、各系位阶（修为/星子）、法术、战斗形态。
 ##
@@ -43,23 +42,23 @@ var burn_turns: int = 0
 var paralyzed: bool = false
 
 
-static func create(cfg: Dictionary) -> CharacterState:
-	var c := CharacterState.new()
-	c.id = cfg.get("id", "")
-	c.char_name = cfg.get("name", "")
-	c.elements = cfg.get("elements", [])
-	c.main_element = cfg.get("main_element", c.elements[0] if not c.elements.is_empty() else GameTypes.Element.FIRE)
-	c.can_switch_form = cfg.get("can_switch_form", false)
-	c.max_hp = cfg.get("max_hp", 80)
-	c.max_mp = cfg.get("max_mp", 30)
-	c.magic = cfg.get("magic", 10)
-	c.defense = cfg.get("defense", 3)
-	c.speed = cfg.get("speed", 8)
-	c.hp = c.max_hp
-	c.mp = c.max_mp
-	for el in c.elements:
-		c.ensure_rank(el)
-	return c
+## 从预设配置填充属性（原静态工厂 create 改实例方法：消除自引用，
+## 使本文件免疫 class_name 全局缓存——见 docs/lessons.md 踩坑 18）。
+func build_from(cfg: Dictionary) -> void:
+	id = cfg.get("id", "")
+	char_name = cfg.get("name", "")
+	elements = cfg.get("elements", [])
+	main_element = cfg.get("main_element", elements[0] if not elements.is_empty() else GameTypes.Element.FIRE)
+	can_switch_form = cfg.get("can_switch_form", false)
+	max_hp = cfg.get("max_hp", 80)
+	max_mp = cfg.get("max_mp", 30)
+	magic = cfg.get("magic", 10)
+	defense = cfg.get("defense", 3)
+	speed = cfg.get("speed", 8)
+	hp = max_hp
+	mp = max_mp
+	for el in elements:
+		ensure_rank(el)
 
 
 ## 确保某系的修炼档位存在。
@@ -235,19 +234,20 @@ func to_dict() -> Dictionary:
 	}
 
 
-static func from_dict(d: Dictionary) -> CharacterState:
-	var c := CharacterState.new()
-	c.id = str(d.get("id", ""))
-	c.char_name = str(d.get("name", ""))
-	c.elements = []
+## 从存档字典恢复状态（原静态工厂 from_dict 改实例方法，同上消除自引用）。
+## 调用方先 CharacterState.new() 再 apply_dict(d)。
+func apply_dict(d: Dictionary) -> void:
+	id = str(d.get("id", ""))
+	char_name = str(d.get("name", ""))
+	elements = []
 	for el in d.get("elements", []):
-		c.elements.append(int(el))
-	c.main_element = int(d.get("main_element", GameTypes.Element.FIRE))
-	c.form = int(d.get("form", 0))
-	c.can_switch_form = bool(d.get("can_switch_form", false))
+		elements.append(int(el))
+	main_element = int(d.get("main_element", GameTypes.Element.FIRE))
+	form = int(d.get("form", 0))
+	can_switch_form = bool(d.get("can_switch_form", false))
 	for key in d.get("ranks", {}):
 		var r: Dictionary = d["ranks"][key]
-		c.ranks[int(key)] = {
+		ranks[int(key)] = {
 			"stage": int(r.get("stage", 0)),
 			"star": int(r.get("star", 0)),
 			"dust": int(r.get("dust", 0)),
@@ -256,14 +256,13 @@ static func from_dict(d: Dictionary) -> CharacterState:
 	for sid in d.get("spells", []):
 		var s := GameData.load_spell(str(sid))
 		if s != null:
-			c.spells.append(s)
+			spells.append(s)
 	for slot in d.get("equips", {}):
-		c.equips[str(slot)] = str(d["equips"][slot])
-	c.max_hp = int(d.get("max_hp", 80))
-	c.max_mp = int(d.get("max_mp", 30))
-	c.magic = int(d.get("magic", 10))
-	c.defense = int(d.get("defense", 3))
-	c.speed = int(d.get("speed", 8))
-	c.hp = int(d.get("hp", c.max_hp))
-	c.mp = int(d.get("mp", c.max_mp))
-	return c
+		equips[str(slot)] = str(d["equips"][slot])
+	max_hp = int(d.get("max_hp", 80))
+	max_mp = int(d.get("max_mp", 30))
+	magic = int(d.get("magic", 10))
+	defense = int(d.get("defense", 3))
+	speed = int(d.get("speed", 8))
+	hp = int(d.get("hp", max_hp))
+	mp = int(d.get("mp", max_mp))

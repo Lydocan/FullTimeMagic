@@ -72,7 +72,9 @@ func apply_save_data(d: Dictionary) -> bool:
 		GameState.flags[str(key)] = bool(d["flags"][key])
 	GameState.party.clear()
 	for pd in d.get("party", []):
-		GameState.party.append(CharacterState.from_dict(pd))
+		var m := CharacterState.new()
+		m.apply_dict(pd)
+		GameState.party.append(m)
 	var pos: Array = d.get("return_position", [0, 0])
 	GameState.return_position = Vector2(float(pos[0]), float(pos[1])) if pos.size() == 2 else Vector2.ZERO
 	GameState.has_return_position = bool(d.get("has_return_position", false))

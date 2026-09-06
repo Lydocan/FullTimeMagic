@@ -152,7 +152,7 @@ func _test_battle_simulation() -> void:
 	await get_tree().process_frame
 
 
-## 角色序列化：to_dict → JSON → from_dict 往返（真实存档路径）。
+## 角色序列化：to_dict → JSON → apply_dict 往返（真实存档路径）。
 func _test_character_serialization() -> void:
 	print("[角色序列化]")
 	var m := PartySetup.mo_fan()
@@ -162,7 +162,8 @@ func _test_character_serialization() -> void:
 	m.mp = 7
 	# JSON.parse_string 返回 Variant，不能用 := 推断（项目将其视为错误）
 	var json = JSON.parse_string(JSON.stringify(m.to_dict()))
-	var m2 := CharacterState.from_dict(json)
+	var m2 := CharacterState.new()
+	m2.apply_dict(json)
 	_check(m2.id == m.id and m2.char_name == m.char_name, "角色往返：id 与名字")
 	_check(m2.elements == m.elements and m2.main_element == m.main_element, "角色往返：元素与主修")
 	_check(m2.stage_of(GameTypes.Element.LIGHTNING) == m.stage_of(GameTypes.Element.LIGHTNING)

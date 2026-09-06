@@ -1,4 +1,3 @@
-class_name ItemData
 extends Resource
 ## 消耗品数据（.tres 数据驱动，实例见 resources/items/）。
 

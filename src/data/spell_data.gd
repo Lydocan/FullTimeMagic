@@ -1,4 +1,3 @@
-class_name SpellData
 extends Resource
 ## 法术数据（.tres 数据驱动，实例见 resources/spells/）。
 
