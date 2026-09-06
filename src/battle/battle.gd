@@ -190,6 +190,12 @@ func _build_ui() -> void:
 
 ## —— 战斗立绘：出招者的大幅形象贴在画面两侧，随行动切换 ——
 
+## 成员立绘：优先高清 art/<id>/portrait.png（docs/art_spec.md），回落像素占位。
+func _member_portrait(member_id: String) -> String:
+	var hires := "res://assets/images/art/%s/portrait.png" % member_id
+	return hires if ResourceLoader.exists(hires) else PARTY_PORTRAITS.get(member_id, "")
+
+
 func _build_portraits() -> void:
 	_portrait_left = _make_portrait(Vector2(18, 320))
 	_portrait_right = _make_portrait(Vector2(1280.0 - PORTRAIT_SIZE.x - 18.0, 300))
@@ -883,7 +889,7 @@ func _begin_command(m: CharacterState) -> void:
 	_member = m
 	_phase = Phase.COMMAND
 	_boost = 0
-	_show_portrait(_portrait_left, PARTY_PORTRAITS.get(m.id, ""), true)
+	_show_portrait(_portrait_left, _member_portrait(m.id), true)
 	_show_command(m)
 
 

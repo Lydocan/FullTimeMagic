@@ -48,6 +48,15 @@ const MEMBER_NAMES := {
 	"mu_ningxue": "穆宁雪",
 }
 
+## 高清立绘目录（分层纸娃娃，规格见 docs/art_spec.md）。
+## 角色 base.png 存在即切高清轨；缺失自动回落像素占位。
+const ART_DIR := "res://assets/images/art/"
+
+
+## 高清轨判定：该角色存在 art/<id>/base.png 即用高清纸娃娃。
+func _art_track(member_id: String) -> bool:
+	return ResourceLoader.exists(ART_DIR + member_id + "/base.png")
+
 # tiles_proto.png 的 11 格横向图块。
 const T_GRASS := Vector2i(0, 0)
 const T_TALL := Vector2i(1, 0)
@@ -1178,7 +1187,9 @@ func _switch_wardrobe_member(member_id: String) -> void:
 	_refresh_wardrobe()
 
 
-## 试穿预览面板：base 身体 + 按角色槽位顺序的层贴图，24x32 → 4x，NEAREST 保像素锐利。
+## 试穿预览面板：base 身体 + 按角色槽位顺序的层贴图。
+## 高清轨（art/<角色>/base.png 存在）：2D 动建立绘 768x1152 线性过滤缩放显示；
+## 像素轨（默认占位）：24x32 → 4x，NEAREST 保像素锐利。规格见 docs/art_spec.md。
 func _build_outfit_preview(member_id: String) -> Control:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
@@ -1200,18 +1211,23 @@ func _build_outfit_preview(member_id: String) -> Control:
 	title.add_theme_font_size_override("font_size", 13)
 	title.add_theme_color_override("font_color", Color("c792ff"))
 	box.add_child(title)
+	var hires := _art_track(member_id)
 	var frame := Control.new()
-	frame.custom_minimum_size = Vector2(96, 128)
+	frame.custom_minimum_size = Vector2(216, 324) if hires else Vector2(96, 128)
 	box.add_child(frame)
 	_preview_layers.clear()
-	var layer_paths: Array = [MEMBER_OUTFIT_BASE.get(member_id, "res://assets/images/char_mofan_base.png")]
+	var base_path: String = ART_DIR + member_id + "/base.png" if hires \
+			else MEMBER_OUTFIT_BASE.get(member_id, "res://assets/images/char_mofan_base.png")
+	var layer_paths: Array = [base_path]
 	for slot in MEMBER_WARDROBE_SLOTS.get(member_id, []):
 		layer_paths.append("")
+	var tex_filter := CanvasItem.TEXTURE_FILTER_LINEAR if hires else CanvasItem.TEXTURE_FILTER_NEAREST
 	for layer_path in layer_paths:
 		var tr := TextureRect.new()
 		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE  # 贴图原始尺寸不当最小尺寸，才能缩进画框
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
-		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tr.texture_filter = tex_filter
 		if layer_path != "":
 			tr.texture = load(layer_path)
 		frame.add_child(tr)
@@ -1227,11 +1243,13 @@ func _refresh_outfit_preview(override_slot: String = "", override_id: String = "
 	var worn: Dictionary = GameState.worn_clothes.get(_wardrobe_member, {})
 	var dress_on := (override_slot == "dress" and override_id != "") \
 			or str(worn.get("dress", "")) != ""
+	var hires := _art_track(_wardrobe_member)
 	for i in slots.size():
 		var slot: String = slots[i]
 		var tr: TextureRect = _preview_layers[i + 1]
 		var id := override_id if slot == override_slot else str(worn.get(slot, ""))
-		var path := "res://assets/images/clothes/%s.png" % id
+		var path: String = (ART_DIR + _wardrobe_member + "/" + id + ".png") if hires \
+				else ("res://assets/images/clothes/%s.png" % id)
 		tr.texture = load(path) if id != "" and ResourceLoader.exists(path) else null
 		tr.visible = tr.texture != null and not (dress_on and (slot == "top" or slot == "pants"))
 
